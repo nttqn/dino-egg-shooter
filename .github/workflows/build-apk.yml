@@ -23,9 +23,48 @@ jobs:
 
       # android/ is intentionally not committed to the repo (see .gitignore)
       # so nobody needs Flutter/Android Studio installed locally just to
-      # keep this file in sync. We regenerate it fresh on every build.
+      # keep this file in sync. We regenerate it fresh on every build, then
+      # patch in the AdMob App ID and INTERNET permission it needs.
       - name: Generate Android platform project
         run: flutter create --platforms=android --org com.trungsmail --project-name dino_egg_shooter .
+
+      - name: Patch AndroidManifest.xml (AdMob + app label)
+        env:
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+        run: |
+          set -e
+          APP_ID="${ADMOB_APP_ID:-ca-app-pub-3940256099942544~3347511713}"
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          if [ -z "${ADMOB_APP_ID}" ]; then
+            echo "::warning::ADMOB_APP_ID secret not set — using Google's TEST AdMob App ID. Ads will show as test ads only. Set the ADMOB_APP_ID secret before publishing."
+          fi
+          sed -i "s#<application#<uses-permission android:name=\"android.permission.INTERNET\"/>\n  <application#" "$MANIFEST"
+          sed -i "s#</application>#    <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"${APP_ID}\"/>\n  </application>#" "$MANIFEST"
+          sed -i -E 's/android:label="[^"]*"/android:label="Dino Egg Shooter"/g' "$MANIFEST"
+          cat "$MANIFEST"
+
+      # google_mobile_ads requires minSdk 23+ (and a recent compileSdk).
+      # flutter create defaults these to `flutter.minSdkVersion` /
+      # `flutter.compileSdkVersion`, which can lag behind what current
+      # plugins need, so force explicit values here. Handles both the
+      # Groovy (build.gradle) and Kotlin DSL (build.gradle.kts) templates
+      # since Flutter has changed the default over time.
+      - name: Raise minSdk/compileSdk for plugin compatibility
+        run: |
+          set -e
+          for f in android/app/build.gradle android/app/build.gradle.kts; do
+            if [ -f "$f" ]; then
+              echo "Patching $f"
+              if [[ "$f" == *.kts ]]; then
+                sed -i -E 's/minSdk( )?=.*/minSdk = 23/' "$f"
+                sed -i -E 's/compileSdk( )?=.*/compileSdk = 36/' "$f"
+              else
+                sed -i -E 's/minSdkVersion .*/minSdkVersion 23/' "$f"
+                sed -i -E 's/compileSdkVersion .*/compileSdkVersion 36/' "$f"
+              fi
+              grep -nE 'minSdk|compileSdk' "$f"
+            fi
+          done
 
       - name: Install dependencies
         run: flutter pub get

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../game/dino_egg_game.dart';
 import '../models/difficulty.dart';
+import '../services/admob_service.dart';
 import '../services/save_service.dart';
 
 class GameScreen extends StatefulWidget {
@@ -17,6 +18,17 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late final DinoEggGame _game = DinoEggGame(difficulty: widget.difficulty);
 
+  @override
+  void initState() {
+    super.initState();
+    AdmobService.preloadInterstitial();
+  }
+
+  void _restart() {
+    AdmobService.showInterstitial();
+    _game.restart();
+  }
+
   void _togglePause() {
     if (_game.paused) {
       _game.overlays.remove('paused');
@@ -28,7 +40,10 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {});
   }
 
-  void _backToMenu() => Navigator.of(context).popUntil((route) => route.isFirst);
+  void _backToMenu() {
+    AdmobService.showInterstitial();
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +58,7 @@ class _GameScreenState extends State<GameScreen> {
                 color: const Color(0xFFC62828),
                 score: (game as DinoEggGame).score,
                 difficulty: widget.difficulty,
-                onRestart: _game.restart,
+                onRestart: _restart,
                 onMenu: _backToMenu,
               ),
               'youWin': (context, game) => _RoundEndOverlay(
@@ -51,7 +66,7 @@ class _GameScreenState extends State<GameScreen> {
                 color: const Color(0xFF2E7D32),
                 score: (game as DinoEggGame).score,
                 difficulty: widget.difficulty,
-                onRestart: _game.restart,
+                onRestart: _restart,
                 onMenu: _backToMenu,
               ),
               'paused': (context, game) => _PausedOverlay(

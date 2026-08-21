@@ -38,6 +38,7 @@ dependencies:
   # 2D game engine (rendering, game loop, components, collisions)
   flame: ^1.24.0
   shared_preferences: ^2.5.5
+  google_mobile_ads: ^9.1.0
 
 dev_dependencies:
   flutter_test:
