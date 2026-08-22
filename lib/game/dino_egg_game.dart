@@ -1,6 +1,8 @@
 import 'dart:collection';
 import 'dart:math';
 
+import 'package:flame/components.dart' show TimerComponent;
+import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart' hide PointerMoveEvent;
@@ -9,16 +11,19 @@ import '../models/difficulty.dart';
 import '../models/game_state.dart';
 import 'effects/pop_effect.dart';
 import 'entities/aim_line.dart';
+import 'entities/dino_npc.dart';
 import 'entities/egg_bubble.dart';
 import 'entities/launcher.dart';
-import 'entities/next_bubble_indicator.dart';
+import 'entities/loaded_egg_indicator.dart';
 import 'grid/hex_grid.dart';
 import 'logic/floating_detector.dart';
 import 'logic/match_finder.dart';
 
 /// Board dimensions, matching the reference screenshots' proportions
-/// (roughly 7-8 bubbles wide).
-const int kGridRows = 10;
+/// (roughly 7-8 bubbles wide). kGridRows is a cap, not a target — on a tall
+/// portrait phone there's room for well more than the old cap of 10, which
+/// left a huge empty gap between the pile and the launcher.
+const int kGridRows = 18;
 const int kGridCols = 8;
 
 /// Aim direction is clamped away from dead-horizontal so the player can
@@ -44,6 +49,7 @@ class DinoEggGame extends FlameGame
 
   late HexGrid grid;
   late Launcher launcher;
+  late DinoNpc dinoNpc;
   late Vector2 launcherPosition;
   late double _bubbleDiameter;
   late int _rowCount;
@@ -51,6 +57,11 @@ class DinoEggGame extends FlameGame
   double aimAngle = -pi / 2;
   EggColor? currentColor;
   EggColor? nextColor;
+
+  /// True while the dino NPC's tossed egg is mid-flight to the launcher —
+  /// used by [DinoNpc]/[LoadedEggIndicator] to avoid drawing two eggs at
+  /// once during that animation.
+  bool isTossing = false;
 
   GameStatus status = GameStatus.playing;
 
@@ -83,7 +94,17 @@ class DinoEggGame extends FlameGame
     launcherPosition = Vector2(size.x / 2, size.y - _bubbleDiameter);
     launcher = Launcher(diameter: _bubbleDiameter, position: launcherPosition.clone());
     add(launcher);
-    add(NextBubbleIndicator());
+
+    dinoNpc = DinoNpc(
+      position: Vector2(
+        launcherPosition.x - _bubbleDiameter * 1.9,
+        launcherPosition.y - _bubbleDiameter * 0.1,
+      ),
+      eggDiameter: _bubbleDiameter,
+    );
+    add(dinoNpc);
+
+    add(LoadedEggIndicator());
     add(AimLine());
 
     // Cap the grid to however many rows actually fit above the launcher —
@@ -114,16 +135,18 @@ class DinoEggGame extends FlameGame
       cols: kGridCols,
       bubbleDiameter: _bubbleDiameter,
     );
-    // Always leave a few empty rows above the launcher at the start —
-    // filling too close to _rowCount left almost no room before the
-    // bottom-row loss check, making the very first shots feel unfair.
-    final initialFillRows = (_rowCount - 4).clamp(3, 6);
+    // Scale with _rowCount (not a flat cap) so a tall portrait screen — which
+    // can fit far more rows than a squarish test window — still starts with
+    // a reasonably full board instead of a mostly-empty one, while always
+    // keeping a few empty rows of buffer above the launcher.
+    final initialFillRows = (_rowCount * 0.6).round().clamp(3, _rowCount - 3);
     _fillTestRows(rowCount: initialFillRows);
     _renderGridBubbles();
 
     status = GameStatus.playing;
     scoreNotifier.value = 0;
     shotsFired = 0;
+    isTossing = false;
     currentColor = _randomAvailableColor();
     nextColor = _randomAvailableColor();
   }
@@ -189,12 +212,36 @@ class DinoEggGame extends FlameGame
       position: launcherPosition.clone(),
     );
     _projectile = bubble;
-    _projectileVelocity = direction * diameter * 7;
+    _projectileVelocity = direction * diameter * 11;
     add(bubble);
 
     shotsFired++;
+    final incoming = nextColor;
     currentColor = nextColor;
     nextColor = _randomAvailableColor();
+    if (incoming != null) _tossNextEggToLauncher(incoming);
+  }
+
+  /// Animates the dino NPC's held egg flying from its hands into the
+  /// launcher, taking over the "loaded egg" spot visually until it lands.
+  void _tossNextEggToLauncher(EggColor color) {
+    isTossing = true;
+    final egg = EggBubble(
+      color: color,
+      diameter: grid.bubbleDiameter,
+      position: dinoNpc.handPosition.clone(),
+    );
+    add(egg);
+    egg.add(
+      MoveToEffect(
+        launcherPosition.clone(),
+        EffectController(duration: 0.28, curve: Curves.easeOut),
+        onComplete: () {
+          egg.removeFromParent();
+          isTossing = false;
+        },
+      ),
+    );
   }
 
   void _advanceProjectile(double dt) {
@@ -420,11 +467,51 @@ class DinoEggGame extends FlameGame
       return true;
     }
     if (_pileReachesLauncher() || _bottomRowOccupied()) {
-      status = GameStatus.lost;
-      overlays.add('gameOver');
+      _triggerLossCollapse();
       return true;
     }
     return false;
+  }
+
+  /// Loss sequence: block input immediately, then send every remaining
+  /// bubble crashing down off the bottom of the screen (staggered from the
+  /// bottom row up, like the pile toppling over) with a pop burst at each
+  /// one, and only show the game-over overlay once that's finished.
+  void _triggerLossCollapse() {
+    status = GameStatus.lost;
+    _projectile?.removeFromParent();
+    _projectile = null;
+    _projectileVelocity = null;
+
+    final bubbles = _bubbleAt.values.toList();
+    _bubbleAt.clear();
+
+    var maxDelay = 0.0;
+    for (final bubble in bubbles) {
+      add(PopEffect(position: bubble.position.clone(), color: bubble.color));
+
+      final row = grid.nearestCell(Offset(bubble.position.x, bubble.position.y)).$1;
+      final delay = (grid.rows - 1 - row) * 0.025;
+      maxDelay = max(maxDelay, delay);
+
+      final fallDistance = size.y - bubble.position.y + grid.bubbleDiameter;
+      final sway = (_random.nextDouble() - 0.5) * grid.bubbleDiameter * 2;
+      bubble.add(
+        MoveByEffect(
+          Vector2(sway, fallDistance),
+          EffectController(duration: 0.6, startDelay: delay, curve: Curves.easeIn),
+          onComplete: () => bubble.removeFromParent(),
+        ),
+      );
+    }
+
+    add(
+      TimerComponent(
+        period: maxDelay + 0.7,
+        removeOnFinish: true,
+        onTick: () => overlays.add('gameOver'),
+      ),
+    );
   }
 
   /// The grid has no row below the last one, so a ball hitting a bottom-row
