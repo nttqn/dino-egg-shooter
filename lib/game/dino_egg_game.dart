@@ -88,6 +88,7 @@ class DinoEggGame extends FlameGame
   Future<void> onLoad() async {
     super.onLoad();
     await loadEggSprites(images);
+    await loadDinoAnimations(images);
 
     _bubbleDiameter = size.x / kGridCols;
 
@@ -226,6 +227,7 @@ class DinoEggGame extends FlameGame
   /// launcher, taking over the "loaded egg" spot visually until it lands.
   void _tossNextEggToLauncher(EggColor color) {
     isTossing = true;
+    dinoNpc.playThrow();
     final egg = EggBubble(
       color: color,
       diameter: grid.bubbleDiameter,
@@ -235,7 +237,7 @@ class DinoEggGame extends FlameGame
     egg.add(
       MoveToEffect(
         launcherPosition.clone(),
-        EffectController(duration: 0.28, curve: Curves.easeOut),
+        EffectController(duration: dinoThrowDuration, curve: Curves.easeOut),
         onComplete: () {
           egg.removeFromParent();
           isTossing = false;
