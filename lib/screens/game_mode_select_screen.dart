@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../models/difficulty.dart';
-import 'game_mode_select_screen.dart';
+import '../models/game_mode.dart';
+import '../services/save_service.dart';
+import 'game_screen.dart';
 
-class DifficultySelectScreen extends StatelessWidget {
-  const DifficultySelectScreen({super.key});
+class GameModeSelectScreen extends StatelessWidget {
+  final Difficulty difficulty;
+
+  const GameModeSelectScreen({super.key, required this.difficulty});
+
+  static const _icons = {
+    GameMode.normal: Icons.stairs,
+    GameMode.endless: Icons.all_inclusive,
+    GameMode.timeTrial: Icons.timer,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -14,28 +24,27 @@ class DifficultySelectScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.white,
-        title: const Text('CHỌN ĐỘ KHÓ'),
+        title: const Text('CHỌN CHẾ ĐỘ'),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          children: Difficulty.values
-              .map((d) => _DifficultyCard(difficulty: d, accent: d.accentColor))
-              .toList(),
+          children: GameMode.values.map((mode) => _ModeCard(mode: mode, difficulty: difficulty)).toList(),
         ),
       ),
     );
   }
 }
 
-class _DifficultyCard extends StatelessWidget {
+class _ModeCard extends StatelessWidget {
+  final GameMode mode;
   final Difficulty difficulty;
-  final Color accent;
 
-  const _DifficultyCard({required this.difficulty, required this.accent});
+  const _ModeCard({required this.mode, required this.difficulty});
 
   @override
   Widget build(BuildContext context) {
+    final accent = difficulty.accentColor;
     return Card(
       color: const Color(0xFF2B2118),
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -47,7 +56,7 @@ class _DifficultyCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => GameModeSelectScreen(difficulty: difficulty)),
+            MaterialPageRoute(builder: (_) => GameScreen(difficulty: difficulty, mode: mode)),
           );
         },
         child: Padding(
@@ -57,7 +66,11 @@ class _DifficultyCard extends StatelessWidget {
               CircleAvatar(
                 radius: 28,
                 backgroundColor: accent,
-                child: const Icon(Icons.egg, color: Colors.white, size: 28),
+                child: Icon(
+                  GameModeSelectScreen._icons[mode],
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -65,7 +78,7 @@ class _DifficultyCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      difficulty.label,
+                      mode.label,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -74,8 +87,26 @@ class _DifficultyCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      difficulty.description,
+                      mode.description,
                       style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    const SizedBox(height: 6),
+                    FutureBuilder<int>(
+                      future: SaveService.getHighScore(difficulty, mode),
+                      builder: (context, snapshot) {
+                        final highScore = snapshot.data;
+                        if (highScore == null || highScore == 0) {
+                          return const SizedBox.shrink();
+                        }
+                        return Text(
+                          'Điểm cao nhất: $highScore',
+                          style: TextStyle(
+                            color: accent,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

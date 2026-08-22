@@ -4,20 +4,22 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../game/dino_egg_game.dart';
 import '../models/difficulty.dart';
+import '../models/game_mode.dart';
 import '../services/admob_service.dart';
 import '../services/save_service.dart';
 
 class GameScreen extends StatefulWidget {
   final Difficulty difficulty;
+  final GameMode mode;
 
-  const GameScreen({super.key, required this.difficulty});
+  const GameScreen({super.key, required this.difficulty, required this.mode});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
 }
 
 class _GameScreenState extends State<GameScreen> {
-  late final DinoEggGame _game = DinoEggGame(difficulty: widget.difficulty);
+  late final DinoEggGame _game = DinoEggGame(difficulty: widget.difficulty, mode: widget.mode);
   BannerAd? _banner;
 
   @override
@@ -71,14 +73,16 @@ class _GameScreenState extends State<GameScreen> {
                     color: const Color(0xFFC62828),
                     score: (game as DinoEggGame).score,
                     difficulty: widget.difficulty,
+                    mode: widget.mode,
                     onRestart: _restart,
                     onMenu: _backToMenu,
                   ),
-                  'youWin': (context, game) => _RoundEndOverlay(
-                    title: 'BẠN THẮNG!',
-                    color: const Color(0xFF2E7D32),
+                  'timeUp': (context, game) => _RoundEndOverlay(
+                    title: 'HẾT GIỜ!',
+                    color: const Color(0xFFFF8F00),
                     score: (game as DinoEggGame).score,
                     difficulty: widget.difficulty,
+                    mode: widget.mode,
                     onRestart: _restart,
                     onMenu: _backToMenu,
                   ),
@@ -89,7 +93,7 @@ class _GameScreenState extends State<GameScreen> {
                 },
               ),
             ),
-            _BottomHud(game: _game, difficulty: widget.difficulty),
+            _BottomHud(game: _game, difficulty: widget.difficulty, mode: widget.mode),
           ],
         ),
       ),
@@ -137,13 +141,14 @@ class _Hud extends StatelessWidget {
   }
 }
 
-/// Bottom HUD strip: live score (via the game's [ValueNotifier], so it
-/// updates without polling) and the round's difficulty.
+/// Bottom HUD strip: live score, the round's difficulty, and whichever
+/// mode-specific stat matters (level for Normal, countdown for Time Trial).
 class _BottomHud extends StatelessWidget {
   final DinoEggGame game;
   final Difficulty difficulty;
+  final GameMode mode;
 
-  const _BottomHud({required this.game, required this.difficulty});
+  const _BottomHud({required this.game, required this.difficulty, required this.mode});
 
   @override
   Widget build(BuildContext context) {
@@ -164,6 +169,35 @@ class _BottomHud extends StatelessWidget {
               ),
             ),
           ),
+          if (mode == GameMode.timeTrial)
+            ValueListenableBuilder<int>(
+              valueListenable: game.timeRemainingNotifier,
+              builder: (context, seconds, _) {
+                final m = seconds ~/ 60;
+                final s = (seconds % 60).toString().padLeft(2, '0');
+                final urgent = seconds <= 20;
+                return Text(
+                  '$m:$s',
+                  style: TextStyle(
+                    color: urgent ? const Color(0xFFEF5350) : Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              },
+            )
+          else if (mode == GameMode.normal)
+            ValueListenableBuilder<int>(
+              valueListenable: game.levelNotifier,
+              builder: (context, level, _) => Text(
+                'Màn $level',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -190,6 +224,7 @@ class _RoundEndOverlay extends StatefulWidget {
   final Color color;
   final int score;
   final Difficulty difficulty;
+  final GameMode mode;
   final VoidCallback onRestart;
   final VoidCallback onMenu;
 
@@ -198,6 +233,7 @@ class _RoundEndOverlay extends StatefulWidget {
     required this.color,
     required this.score,
     required this.difficulty,
+    required this.mode,
     required this.onRestart,
     required this.onMenu,
   });
@@ -209,6 +245,7 @@ class _RoundEndOverlay extends StatefulWidget {
 class _RoundEndOverlayState extends State<_RoundEndOverlay> {
   late final Future<bool> _isNewHighScore = SaveService.submitScore(
     widget.difficulty,
+    widget.mode,
     widget.score,
   );
 

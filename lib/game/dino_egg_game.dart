@@ -8,6 +8,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart' hide PointerMoveEvent;
 
 import '../models/difficulty.dart';
+import '../models/game_mode.dart';
 import '../models/game_state.dart';
 import 'effects/pop_effect.dart';
 import 'entities/aim_line.dart';
@@ -43,9 +44,10 @@ class _Collision {
 
 class DinoEggGame extends FlameGame
     with TapCallbacks, DragCallbacks, PointerMoveCallbacks {
-  DinoEggGame({this.difficulty = Difficulty.normal});
+  DinoEggGame({this.difficulty = Difficulty.normal, this.mode = GameMode.endless});
 
   final Difficulty difficulty;
+  final GameMode mode;
 
   late HexGrid grid;
   late Launcher launcher;
@@ -71,6 +73,15 @@ class DinoEggGame extends FlameGame
   final ValueNotifier<int> scoreNotifier = ValueNotifier<int>(0);
   int get score => scoreNotifier.value;
 
+  /// Normal-mode level. Each time the board clears, this advances and the
+  /// push-down pacing gets faster; unused by the other modes.
+  final ValueNotifier<int> levelNotifier = ValueNotifier<int>(1);
+  int get level => levelNotifier.value;
+
+  /// Time Trial's countdown, in whole seconds; unused by the other modes.
+  final ValueNotifier<int> timeRemainingNotifier = ValueNotifier<int>(kTimeTrialSeconds);
+  double _timeAccumulator = 0;
+
   int shotsFired = 0;
 
   final Map<(int, int), EggBubble> _bubbleAt = {};
@@ -80,6 +91,13 @@ class DinoEggGame extends FlameGame
   final _random = Random();
 
   List<EggColor> get _palette => EggColor.values.take(difficulty.colorCount).toList();
+
+  /// Normal mode ramps up by pushing rows down more often each level;
+  /// Endless and Time Trial stay at the difficulty's flat pacing.
+  int get _effectiveShotsPerPushDown {
+    if (mode != GameMode.normal) return difficulty.shotsPerPushDown;
+    return max(2, difficulty.shotsPerPushDown - (level - 1));
+  }
 
   @override
   Color backgroundColor() => const Color(0xFF16351F);
@@ -121,15 +139,33 @@ class DinoEggGame extends FlameGame
   }
 
   /// Resets the board to a fresh, playable state. Called on first load and
-  /// again whenever the player restarts from the game-over/win overlay.
+  /// again whenever the player restarts from a round-end overlay.
   void _startNewRound() {
+    _projectile?.removeFromParent();
+    _projectile = null;
+    _projectileVelocity = null;
+
+    _populateBoard();
+
+    status = GameStatus.playing;
+    scoreNotifier.value = 0;
+    shotsFired = 0;
+    isTossing = false;
+    levelNotifier.value = 1;
+    timeRemainingNotifier.value = kTimeTrialSeconds;
+    _timeAccumulator = 0;
+    currentColor = _randomAvailableColor();
+    nextColor = _randomAvailableColor();
+  }
+
+  /// Builds a fresh grid and fills it — shared by [_startNewRound] and
+  /// [_boardCleared], which differ only in what round state they reset
+  /// around it.
+  void _populateBoard() {
     for (final bubble in _bubbleAt.values) {
       bubble.removeFromParent();
     }
     _bubbleAt.clear();
-    _projectile?.removeFromParent();
-    _projectile = null;
-    _projectileVelocity = null;
 
     grid = HexGrid(
       rows: _rowCount,
@@ -143,26 +179,41 @@ class DinoEggGame extends FlameGame
     final initialFillRows = (_rowCount * 0.6).round().clamp(3, _rowCount - 3);
     _fillTestRows(rowCount: initialFillRows);
     _renderGridBubbles();
-
-    status = GameStatus.playing;
-    scoreNotifier.value = 0;
-    shotsFired = 0;
-    isTossing = false;
-    currentColor = _randomAvailableColor();
-    nextColor = _randomAvailableColor();
   }
 
-  /// Called by the game-over/win overlay's "play again" action.
+  /// Called by a round-end overlay's "play again" action.
   void restart() {
     _startNewRound();
     overlays.remove('gameOver');
-    overlays.remove('youWin');
+    overlays.remove('timeUp');
   }
 
   @override
   void update(double dt) {
     super.update(dt);
     _advanceProjectile(dt);
+    if (mode == GameMode.timeTrial && status == GameStatus.playing) {
+      _updateCountdown(dt);
+    }
+  }
+
+  void _updateCountdown(double dt) {
+    _timeAccumulator += dt;
+    while (_timeAccumulator >= 1.0 && timeRemainingNotifier.value > 0) {
+      _timeAccumulator -= 1.0;
+      timeRemainingNotifier.value--;
+    }
+    if (timeRemainingNotifier.value <= 0) {
+      _triggerTimeUp();
+    }
+  }
+
+  void _triggerTimeUp() {
+    status = GameStatus.timeUp;
+    _projectile?.removeFromParent();
+    _projectile = null;
+    _projectileVelocity = null;
+    overlays.add('timeUp');
   }
 
   // --- Input -----------------------------------------------------------
@@ -394,7 +445,7 @@ class DinoEggGame extends FlameGame
     _resolveMatchesAndFalls(row, col);
     if (_checkWinLose()) return;
 
-    if (shotsFired % difficulty.shotsPerPushDown == 0) {
+    if (shotsFired % _effectiveShotsPerPushDown == 0) {
       _pushRowDown();
       _removeFloatingCells();
       _checkWinLose();
@@ -460,19 +511,31 @@ class DinoEggGame extends FlameGame
     _renderGridBubbles();
   }
 
-  /// Returns true if the round ended (won or lost) as a result of the
-  /// latest board mutation.
+  /// Returns true if the round ended (lost, or Time Trial's clock ran out)
+  /// as a result of the latest board mutation. Clearing the board never
+  /// ends the round — see [_boardCleared].
   bool _checkWinLose() {
     if (grid.occupiedCells.isEmpty) {
-      status = GameStatus.won;
-      overlays.add('youWin');
-      return true;
+      _boardCleared();
+      return false;
     }
     if (_pileReachesLauncher() || _bottomRowOccupied()) {
       _triggerLossCollapse();
       return true;
     }
     return false;
+  }
+
+  /// The board emptied out. In Normal mode that's completing a level —
+  /// advance it (which ramps up push-down pacing) before refilling; the
+  /// other modes just refill at the same pacing and keep going.
+  void _boardCleared() {
+    if (mode == GameMode.normal) {
+      levelNotifier.value++;
+    }
+    _populateBoard();
+    currentColor = _randomAvailableColor();
+    nextColor = _randomAvailableColor();
   }
 
   /// Loss sequence: block input immediately, then send every remaining
