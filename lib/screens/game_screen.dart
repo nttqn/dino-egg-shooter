@@ -1,5 +1,6 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../game/dino_egg_game.dart';
 import '../models/difficulty.dart';
@@ -17,11 +18,19 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   late final DinoEggGame _game = DinoEggGame(difficulty: widget.difficulty);
+  BannerAd? _banner;
 
   @override
   void initState() {
     super.initState();
     AdmobService.preloadInterstitial();
+    _banner = AdmobService.createBanner(onLoaded: () => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _banner?.dispose();
+    super.dispose();
   }
 
   void _restart() {
@@ -48,42 +57,78 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          GameWidget(
-            game: _game,
-            overlayBuilderMap: {
-              'gameOver': (context, game) => _RoundEndOverlay(
-                title: 'GAME OVER',
-                color: const Color(0xFFC62828),
-                score: (game as DinoEggGame).score,
-                difficulty: widget.difficulty,
-                onRestart: _restart,
-                onMenu: _backToMenu,
-              ),
-              'youWin': (context, game) => _RoundEndOverlay(
-                title: 'BẠN THẮNG!',
-                color: const Color(0xFF2E7D32),
-                score: (game as DinoEggGame).score,
-                difficulty: widget.difficulty,
-                onRestart: _restart,
-                onMenu: _backToMenu,
-              ),
-              'paused': (context, game) => _PausedOverlay(
-                onResume: _togglePause,
-                onMenu: _backToMenu,
-              ),
-            },
-          ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: SafeArea(
-              child: IconButton(
-                icon: const Icon(Icons.pause_circle_filled, color: Colors.white70, size: 32),
-                onPressed: _togglePause,
+      backgroundColor: const Color(0xFF16351F),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _Hud(banner: _banner, onPause: _togglePause),
+            Expanded(
+              child: GameWidget(
+                game: _game,
+                overlayBuilderMap: {
+                  'gameOver': (context, game) => _RoundEndOverlay(
+                    title: 'GAME OVER',
+                    color: const Color(0xFFC62828),
+                    score: (game as DinoEggGame).score,
+                    difficulty: widget.difficulty,
+                    onRestart: _restart,
+                    onMenu: _backToMenu,
+                  ),
+                  'youWin': (context, game) => _RoundEndOverlay(
+                    title: 'BẠN THẮNG!',
+                    color: const Color(0xFF2E7D32),
+                    score: (game as DinoEggGame).score,
+                    difficulty: widget.difficulty,
+                    onRestart: _restart,
+                    onMenu: _backToMenu,
+                  ),
+                  'paused': (context, game) => _PausedOverlay(
+                    onResume: _togglePause,
+                    onMenu: _backToMenu,
+                  ),
+                },
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Top HUD strip: reserves room for the pause button (top-right, so it
+/// never overlaps the topmost row of eggs) and, when loaded, a banner ad.
+/// Living in Flutter layout (not drawn inside the Flame canvas) means the
+/// game widget below it is simply given a smaller height and adapts on its
+/// own — no game-side offset math needed.
+class _Hud extends StatelessWidget {
+  final BannerAd? banner;
+  final VoidCallback onPause;
+
+  const _Hud({required this.banner, required this.onPause});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF0F2415),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      height: 56,
+      child: Row(
+        children: [
+          Expanded(
+            child: banner == null
+                ? const SizedBox.shrink()
+                : Center(
+                    child: SizedBox(
+                      width: banner!.size.width.toDouble(),
+                      height: banner!.size.height.toDouble(),
+                      child: AdWidget(ad: banner!),
+                    ),
+                  ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.pause_circle_filled, color: Colors.white70, size: 32),
+            onPressed: onPause,
           ),
         ],
       ),
