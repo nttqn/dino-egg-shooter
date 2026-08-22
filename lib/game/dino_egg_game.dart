@@ -76,6 +76,7 @@ class DinoEggGame extends FlameGame
   @override
   Future<void> onLoad() async {
     super.onLoad();
+    await loadEggSprites(images);
 
     _bubbleDiameter = size.x / kGridCols;
 

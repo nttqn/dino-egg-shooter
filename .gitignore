@@ -55,3 +55,7 @@ app.*.map.json
 *.jks
 *.keystore
 key.properties
+
+# Original uncropped source art — only the cropped sprites in assets/
+# are actually shipped/used by the app.
+/assets_source/

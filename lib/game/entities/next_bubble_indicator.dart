@@ -31,6 +31,16 @@ class NextBubbleIndicator extends Component with HasGameReference<DinoEggGame> {
   }
 
   void _drawEgg(Canvas canvas, Vector2 center, double diameter, EggColor color) {
+    final sprite = eggSpriteFor(color);
+    if (sprite != null) {
+      sprite.render(
+        canvas,
+        position: Vector2(center.x - diameter / 2, center.y - diameter / 2),
+        size: Vector2.all(diameter),
+      );
+      return;
+    }
+
     final radius = diameter / 2;
     final offset = Offset(center.x, center.y);
     canvas.drawCircle(offset, radius, Paint()..color = eggColorPalette[color]!);
