@@ -5,6 +5,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../game/dino_egg_game.dart';
 import '../models/difficulty.dart';
 import '../models/game_mode.dart';
+import '../models/game_state.dart';
 import '../services/admob_service.dart';
 import '../services/save_service.dart';
 
@@ -56,45 +57,61 @@ class _GameScreenState extends State<GameScreen> {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
+  /// Hardware/gesture back should pause the game, not exit it outright.
+  /// Once already paused (or the round already ended), a second back press
+  /// falls through to normal navigation, matching what "Về menu" does.
+  void _handleBackPress(bool didPop, Object? result) {
+    if (didPop) return;
+    if (_game.status == GameStatus.playing && !_game.paused) {
+      _togglePause();
+    } else {
+      _backToMenu();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF16351F),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _Hud(banner: _banner, onPause: _togglePause),
-            Expanded(
-              child: GameWidget(
-                game: _game,
-                overlayBuilderMap: {
-                  'gameOver': (context, game) => _RoundEndOverlay(
-                    title: 'GAME OVER',
-                    color: const Color(0xFFC62828),
-                    score: (game as DinoEggGame).score,
-                    difficulty: widget.difficulty,
-                    mode: widget.mode,
-                    onRestart: _restart,
-                    onMenu: _backToMenu,
-                  ),
-                  'timeUp': (context, game) => _RoundEndOverlay(
-                    title: 'HẾT GIỜ!',
-                    color: const Color(0xFFFF8F00),
-                    score: (game as DinoEggGame).score,
-                    difficulty: widget.difficulty,
-                    mode: widget.mode,
-                    onRestart: _restart,
-                    onMenu: _backToMenu,
-                  ),
-                  'paused': (context, game) => _PausedOverlay(
-                    onResume: _togglePause,
-                    onMenu: _backToMenu,
-                  ),
-                },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: _handleBackPress,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF16351F),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _Hud(banner: _banner, onPause: _togglePause),
+              Expanded(
+                child: GameWidget(
+                  game: _game,
+                  overlayBuilderMap: {
+                    'gameOver': (context, game) => _RoundEndOverlay(
+                      title: 'GAME OVER',
+                      color: const Color(0xFFC62828),
+                      score: (game as DinoEggGame).score,
+                      difficulty: widget.difficulty,
+                      mode: widget.mode,
+                      onRestart: _restart,
+                      onMenu: _backToMenu,
+                    ),
+                    'timeUp': (context, game) => _RoundEndOverlay(
+                      title: 'HẾT GIỜ!',
+                      color: const Color(0xFFFF8F00),
+                      score: (game as DinoEggGame).score,
+                      difficulty: widget.difficulty,
+                      mode: widget.mode,
+                      onRestart: _restart,
+                      onMenu: _backToMenu,
+                    ),
+                    'paused': (context, game) => _PausedOverlay(
+                      onResume: _togglePause,
+                      onMenu: _backToMenu,
+                    ),
+                  },
+                ),
               ),
-            ),
-            _BottomHud(game: _game, difficulty: widget.difficulty, mode: widget.mode),
-          ],
+              _BottomHud(game: _game, difficulty: widget.difficulty, mode: widget.mode),
+            ],
+          ),
         ),
       ),
     );
