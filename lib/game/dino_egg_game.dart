@@ -12,6 +12,7 @@ import '../models/game_mode.dart';
 import '../models/game_state.dart';
 import 'effects/pop_effect.dart';
 import 'entities/aim_line.dart';
+import 'entities/background_layer.dart';
 import 'entities/dino_npc.dart';
 import 'entities/egg_bubble.dart';
 import 'entities/launcher.dart';
@@ -52,6 +53,7 @@ class DinoEggGame extends FlameGame
   late HexGrid grid;
   late Launcher launcher;
   late DinoNpc dinoNpc;
+  late BackgroundLayer background;
   late Vector2 launcherPosition;
   late double _bubbleDiameter;
   late int _rowCount;
@@ -107,6 +109,10 @@ class DinoEggGame extends FlameGame
     super.onLoad();
     await loadEggSprites(images);
     await loadDinoAnimations(images);
+    await loadBackgrounds(images);
+
+    background = BackgroundLayer();
+    add(background);
 
     _bubbleDiameter = size.x / kGridCols;
 
@@ -162,6 +168,8 @@ class DinoEggGame extends FlameGame
   /// [_boardCleared], which differ only in what round state they reset
   /// around it.
   void _populateBoard() {
+    background.randomize();
+
     for (final bubble in _bubbleAt.values) {
       bubble.removeFromParent();
     }
@@ -253,7 +261,11 @@ class DinoEggGame extends FlameGame
 
   void _fire() {
     if (status != GameStatus.playing) return;
-    if (_projectile != null || currentColor == null) return;
+    // isTossing also gates firing, not just the projectile itself — without
+    // it, a fast shot landing before the dino's ~0.28s toss animation
+    // finishes lets the player fire again mid-throw, restarting/interrupting
+    // it and making the animation look glitchy.
+    if (_projectile != null || isTossing || currentColor == null) return;
 
     final diameter = grid.bubbleDiameter;
     final direction = Vector2(cos(aimAngle), sin(aimAngle));
@@ -487,7 +499,7 @@ class DinoEggGame extends FlameGame
   void _popBubbleAt((int, int) coord) {
     final bubble = _bubbleAt.remove(coord);
     if (bubble == null) return;
-    add(PopEffect(position: bubble.position.clone(), color: bubble.color));
+    add(PopEffect(position: bubble.position.clone(), color: bubble.color, diameter: grid.bubbleDiameter));
     bubble.removeFromParent();
   }
 
@@ -553,7 +565,7 @@ class DinoEggGame extends FlameGame
 
     var maxDelay = 0.0;
     for (final bubble in bubbles) {
-      add(PopEffect(position: bubble.position.clone(), color: bubble.color));
+      add(PopEffect(position: bubble.position.clone(), color: bubble.color, diameter: grid.bubbleDiameter));
 
       final row = grid.nearestCell(Offset(bubble.position.x, bubble.position.y)).$1;
       final delay = (grid.rows - 1 - row) * 0.025;

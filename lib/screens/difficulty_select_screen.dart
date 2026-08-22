@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/difficulty.dart';
+import '../widgets/menu_background.dart';
 import 'game_mode_select_screen.dart';
 
 class DifficultySelectScreen extends StatelessWidget {
@@ -8,8 +9,7 @@ class DifficultySelectScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF16351F),
+    return MenuBackgroundScaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

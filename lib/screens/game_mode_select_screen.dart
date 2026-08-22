@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/difficulty.dart';
 import '../models/game_mode.dart';
 import '../services/save_service.dart';
+import '../widgets/menu_background.dart';
 import 'game_screen.dart';
 
 class GameModeSelectScreen extends StatelessWidget {
@@ -18,8 +19,7 @@ class GameModeSelectScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF16351F),
+    return MenuBackgroundScaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

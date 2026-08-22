@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../services/admob_service.dart';
+import '../widgets/menu_background.dart';
 import 'difficulty_select_screen.dart';
 
 class MainMenuScreen extends StatefulWidget {
@@ -28,8 +29,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF16351F),
+    return MenuBackgroundScaffold(
       body: SafeArea(
         child: Column(
           children: [
