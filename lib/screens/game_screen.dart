@@ -89,6 +89,7 @@ class _GameScreenState extends State<GameScreen> {
                 },
               ),
             ),
+            _BottomHud(game: _game, difficulty: widget.difficulty),
           ],
         ),
       ),
@@ -129,6 +130,54 @@ class _Hud extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.pause_circle_filled, color: Colors.white70, size: 32),
             onPressed: onPause,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bottom HUD strip: live score (via the game's [ValueNotifier], so it
+/// updates without polling) and the round's difficulty.
+class _BottomHud extends StatelessWidget {
+  final DinoEggGame game;
+  final Difficulty difficulty;
+
+  const _BottomHud({required this.game, required this.difficulty});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF0F2415),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          ValueListenableBuilder<int>(
+            valueListenable: game.scoreNotifier,
+            builder: (context, score, _) => Text(
+              'Điểm: $score',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: difficulty.accentColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              difficulty.label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

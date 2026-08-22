@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 enum Difficulty { easy, normal, hard }
 
 extension DifficultyTuning on Difficulty {
@@ -5,6 +7,12 @@ extension DifficultyTuning on Difficulty {
     Difficulty.easy => 'EASY',
     Difficulty.normal => 'NORMAL',
     Difficulty.hard => 'HARD',
+  };
+
+  Color get accentColor => switch (this) {
+    Difficulty.easy => const Color(0xFF43A047),
+    Difficulty.normal => const Color(0xFF1E88E5),
+    Difficulty.hard => const Color(0xFFE53935),
   };
 
   String get description => switch (this) {

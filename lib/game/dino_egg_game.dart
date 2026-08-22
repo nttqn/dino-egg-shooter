@@ -53,7 +53,13 @@ class DinoEggGame extends FlameGame
   EggColor? nextColor;
 
   GameStatus status = GameStatus.playing;
-  int score = 0;
+
+  /// A [ValueNotifier] (rather than a plain int) so the score can be shown
+  /// live in a Flutter widget outside the Flame canvas (the bottom HUD)
+  /// without polling every frame.
+  final ValueNotifier<int> scoreNotifier = ValueNotifier<int>(0);
+  int get score => scoreNotifier.value;
+
   int shotsFired = 0;
 
   final Map<(int, int), EggBubble> _bubbleAt = {};
@@ -115,7 +121,7 @@ class DinoEggGame extends FlameGame
     _renderGridBubbles();
 
     status = GameStatus.playing;
-    score = 0;
+    scoreNotifier.value = 0;
     shotsFired = 0;
     currentColor = _randomAvailableColor();
     nextColor = _randomAvailableColor();
@@ -360,7 +366,7 @@ class DinoEggGame extends FlameGame
     final fallen = _removeFloatingCells();
 
     if (matched.isNotEmpty || fallen > 0) {
-      score += (matched.length + fallen) * 10;
+      scoreNotifier.value += (matched.length + fallen) * 10;
     }
   }
 

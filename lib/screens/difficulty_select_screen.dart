@@ -7,12 +7,6 @@ import 'game_screen.dart';
 class DifficultySelectScreen extends StatelessWidget {
   const DifficultySelectScreen({super.key});
 
-  static const _accentColors = {
-    Difficulty.easy: Color(0xFF43A047),
-    Difficulty.normal: Color(0xFF1E88E5),
-    Difficulty.hard: Color(0xFFE53935),
-  };
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -27,7 +21,7 @@ class DifficultySelectScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           children: Difficulty.values
-              .map((d) => _DifficultyCard(difficulty: d, accent: _accentColors[d]!))
+              .map((d) => _DifficultyCard(difficulty: d, accent: d.accentColor))
               .toList(),
         ),
       ),
