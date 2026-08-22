@@ -7,6 +7,7 @@ import 'package:flutter/material.dart' hide PointerMoveEvent;
 
 import '../models/difficulty.dart';
 import '../models/game_state.dart';
+import 'effects/pop_effect.dart';
 import 'entities/aim_line.dart';
 import 'entities/egg_bubble.dart';
 import 'entities/launcher.dart';
@@ -350,7 +351,7 @@ class DinoEggGame extends FlameGame
     final matched = findMatch(grid, row, col);
     for (final (r, c) in matched) {
       grid.clear(r, c);
-      _bubbleAt.remove((r, c))?.removeFromParent();
+      _popBubbleAt((r, c));
     }
 
     // Always re-check for orphaned bubbles, even when this placement didn't
@@ -369,9 +370,18 @@ class DinoEggGame extends FlameGame
     final floating = findFloatingCells(grid);
     for (final (r, c) in floating) {
       grid.clear(r, c);
-      _bubbleAt.remove((r, c))?.removeFromParent();
+      _popBubbleAt((r, c));
     }
     return floating.length;
+  }
+
+  /// Removes the bubble component at [coord] and fires a small particle
+  /// burst in its color at its last position.
+  void _popBubbleAt((int, int) coord) {
+    final bubble = _bubbleAt.remove(coord);
+    if (bubble == null) return;
+    add(PopEffect(position: bubble.position.clone(), color: bubble.color));
+    bubble.removeFromParent();
   }
 
   /// Shifts every row down by one and fills a fresh row at the top. Any
