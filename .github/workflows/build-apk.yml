@@ -66,6 +66,27 @@ jobs:
             fi
           done
 
+      # Recent AGP versions run R8 aggressively enough by default to strip
+      # androidx.work's WorkDatabase_Impl (only referenced via reflection),
+      # which crashes every screen with "Unable to get provider
+      # androidx.startup.InitializationProvider" / "Failed to create an
+      # instance of androidx.work.impl.WorkDatabase" the moment the app
+      # opens on a real device — WorkManager gets pulled in transitively by
+      # google_mobile_ads. Explicitly enabling shrinking with the matching
+      # keep rules (rather than leaving shrinking's default behavior as-is)
+      # avoids the crash and also gets a smaller APK.
+      - name: Enable release code shrinking (with WorkManager keep rules)
+        run: |
+          set -e
+          cat tool/proguard-rules-extra.pro >> android/app/proguard-rules.pro
+          if [ -f android/app/build.gradle.kts ]; then
+            perl -0777 -pi -e 's/release \{/release {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")/' android/app/build.gradle.kts
+            grep -n -A5 'release {' android/app/build.gradle.kts
+          elif [ -f android/app/build.gradle ]; then
+            perl -0777 -pi -e 's/release \{/release {\n            minifyEnabled true\n            shrinkResources true\n            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"/' android/app/build.gradle
+            grep -n -A5 'release {' android/app/build.gradle
+          fi
+
       - name: Install dependencies
         run: flutter pub get
 
