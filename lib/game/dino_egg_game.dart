@@ -12,6 +12,7 @@ import '../models/game_mode.dart';
 import '../models/game_state.dart';
 import 'effects/pop_effect.dart';
 import 'entities/aim_line.dart';
+import 'entities/announcement_text.dart';
 import 'entities/background_layer.dart';
 import 'entities/dino_npc.dart';
 import 'entities/egg_bubble.dart';
@@ -162,6 +163,8 @@ class DinoEggGame extends FlameGame
     _timeAccumulator = 0;
     currentColor = _randomAvailableColor();
     nextColor = _randomAvailableColor();
+
+    add(AnnouncementText(mode == GameMode.normal ? 'LEVEL 1' : 'START'));
   }
 
   /// Builds a fresh grid and fills it — shared by [_startNewRound] and
@@ -342,11 +345,18 @@ class DinoEggGame extends FlameGame
     }
   }
 
-  /// The first existing bubble whose true collision circle (one full
-  /// diameter — the distance at which two equal circles touch) the segment
+  /// The first existing bubble whose collision circle the segment
   /// [from]->[to] enters this frame, via ray-circle intersection.
+  ///
+  /// Using the true full-diameter touch distance is mathematically correct
+  /// but means an exactly-one-cell gap between two neighbors is *always*
+  /// too narrow to thread (closest approach through it is ≈0.866×diameter)
+  /// — every such gap becomes unshootable, which reads as "collision is too
+  /// generous" rather than as intentional physics. Shrinking the effective
+  /// radius trades a bit of realism for gaps that are visually one cell
+  /// wide actually being shootable.
   _Collision? _sweepCollision(Vector2 from, Vector2 to) {
-    final touchDistance = grid.bubbleDiameter;
+    final touchDistance = grid.bubbleDiameter * 0.82;
     final d = to - from;
     final a = d.dot(d);
 
@@ -548,6 +558,10 @@ class DinoEggGame extends FlameGame
     _populateBoard();
     currentColor = _randomAvailableColor();
     nextColor = _randomAvailableColor();
+
+    if (mode == GameMode.normal) {
+      add(AnnouncementText('LEVEL $level'));
+    }
   }
 
   /// Loss sequence: block input immediately, then send every remaining
