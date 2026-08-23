@@ -90,6 +90,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Reads assets/icon/icon.png and writes it into every
+      # android/app/src/main/res/mipmap-*/ launcher icon slot. Must run
+      # after "Generate Android platform project" (needs android/ to
+      # exist) and after "Install dependencies" (needs the package itself).
+      - name: Generate launcher icon
+        run: dart run flutter_launcher_icons
+
       - name: Analyze (non-blocking)
         run: flutter analyze || true
 
