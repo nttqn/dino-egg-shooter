@@ -18,10 +18,23 @@ class SoundService {
   static final ValueNotifier<bool> enabledNotifier = ValueNotifier<bool>(true);
   static bool get enabled => enabledNotifier.value;
 
+  /// One small reusable player pool per sound file. `FlameAudio.play()`
+  /// spins up a brand-new native AudioPlayer on every call and never
+  /// disposes it — fine for a rare sound, but these fire constantly during
+  /// play, so that leaks player instances and the audio backend gets
+  /// progressively slower/laggier the longer a session runs. Pools reuse a
+  /// handful of players instead.
+  static final Map<String, AudioPool> _pools = {};
+
   static Future<void> preload() async {
     await _loadEnabledState();
     try {
       await FlameAudio.audioCache.loadAll([_shoot, _stick, _pop, _menuBack, _menuConfirm]);
+      _pools[_shoot] = await FlameAudio.createPool(_shoot, maxPlayers: 3);
+      _pools[_stick] = await FlameAudio.createPool(_stick, maxPlayers: 3);
+      _pools[_pop] = await FlameAudio.createPool(_pop, maxPlayers: 4);
+      _pools[_menuBack] = await FlameAudio.createPool(_menuBack, maxPlayers: 2);
+      _pools[_menuConfirm] = await FlameAudio.createPool(_menuConfirm, maxPlayers: 2);
     } catch (_) {
       // Missing audio hardware/permissions shouldn't block the game.
     }
@@ -70,7 +83,14 @@ class SoundService {
 
   static Future<void> _playSafely(String file) async {
     try {
-      await FlameAudio.play(file);
+      final pool = _pools[file];
+      if (pool != null) {
+        await pool.start();
+      } else {
+        // Pool wasn't ready yet (e.g. preload() hadn't finished) — still
+        // play something rather than staying silent.
+        await FlameAudio.play(file);
+      }
     } catch (_) {
       // Missing audio hardware/permissions shouldn't block the game.
     }
