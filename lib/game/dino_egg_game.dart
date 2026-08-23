@@ -673,6 +673,11 @@ class DinoEggGame extends FlameGame
   /// Computes the aim-line polyline: launcher -> ... -> first wall bounce(s)
   /// -> top of the board. Used by [AimLine] for the trajectory preview.
   List<Vector2> computeAimPath() {
+    // Wall bounces must reflect off the projectile's edge, not its center —
+    // matching _advanceProjectile's `to.x - radius <= 0` / `+radius >=
+    // size.x` — otherwise this preview bounces a full radius later/deeper
+    // than where the real egg actually bounces.
+    final radius = _bubbleDiameter / 2;
     final points = <Vector2>[launcherPosition.clone()];
     var origin = launcherPosition.clone();
     var direction = Vector2(cos(aimAngle), sin(aimAngle));
@@ -681,9 +686,9 @@ class DinoEggGame extends FlameGame
       final tTop = direction.y != 0 ? (0 - origin.y) / direction.y : double.infinity;
       double tWall = double.infinity;
       if (direction.x > 0) {
-        tWall = (size.x - origin.x) / direction.x;
+        tWall = (size.x - radius - origin.x) / direction.x;
       } else if (direction.x < 0) {
-        tWall = (0 - origin.x) / direction.x;
+        tWall = (radius - origin.x) / direction.x;
       }
 
       final t = min(tTop, tWall);
