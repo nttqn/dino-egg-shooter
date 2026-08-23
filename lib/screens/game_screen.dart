@@ -366,7 +366,26 @@ class _PausedOverlay extends StatelessWidget {
               'TẠM DỪNG',
               style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            ValueListenableBuilder<bool>(
+              valueListenable: SoundService.enabledNotifier,
+              builder: (context, enabled, _) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    enabled ? Icons.volume_up : Icons.volume_off,
+                    color: Colors.white70,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Âm thanh', style: TextStyle(color: Colors.white70)),
+                  Switch(
+                    value: enabled,
+                    onChanged: SoundService.setEnabled,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
