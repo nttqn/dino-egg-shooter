@@ -10,6 +10,7 @@ import 'package:flutter/material.dart' hide PointerMoveEvent;
 import '../models/difficulty.dart';
 import '../models/game_mode.dart';
 import '../models/game_state.dart';
+import '../services/sound_service.dart';
 import 'effects/pop_effect.dart';
 import 'entities/aim_line.dart';
 import 'entities/announcement_text.dart';
@@ -281,6 +282,7 @@ class DinoEggGame extends FlameGame
     _projectile = bubble;
     _projectileVelocity = direction * diameter * 11;
     add(bubble);
+    SoundService.playShoot();
 
     shotsFired++;
     final incoming = nextColor;
@@ -463,6 +465,7 @@ class DinoEggGame extends FlameGame
     final (row, col) = landing;
     grid.place(row, col, bubble.color);
     _bubbleAt[(row, col)] = _spawnGridBubble(row, col, bubble.color);
+    SoundService.playStick();
 
     _resolveMatchesAndFalls(row, col);
     if (_checkWinLose()) return;
@@ -490,6 +493,7 @@ class DinoEggGame extends FlameGame
 
     if (matched.isNotEmpty || fallen > 0) {
       scoreNotifier.value += (matched.length + fallen) * 10;
+      SoundService.playPop();
     }
   }
 

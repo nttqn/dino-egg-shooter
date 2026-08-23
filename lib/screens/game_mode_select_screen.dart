@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/difficulty.dart';
 import '../models/game_mode.dart';
 import '../services/save_service.dart';
+import '../services/sound_service.dart';
 import '../widgets/menu_background.dart';
 import 'game_screen.dart';
 
@@ -55,6 +56,7 @@ class _ModeCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
+          SoundService.playMenuConfirm();
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => GameScreen(difficulty: difficulty, mode: mode)),
           );

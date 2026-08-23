@@ -8,6 +8,7 @@ import '../models/game_mode.dart';
 import '../models/game_state.dart';
 import '../services/admob_service.dart';
 import '../services/save_service.dart';
+import '../services/sound_service.dart';
 
 class GameScreen extends StatefulWidget {
   final Difficulty difficulty;
@@ -37,22 +38,35 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _restart() {
+    SoundService.playMenuConfirm();
     AdmobService.showInterstitial();
     _game.restart();
   }
 
-  void _togglePause() {
-    if (_game.paused) {
-      _game.overlays.remove('paused');
-      _game.resumeEngine();
-    } else {
-      _game.pauseEngine();
-      _game.overlays.add('paused');
-    }
+  void _pause() {
+    _game.pauseEngine();
+    _game.overlays.add('paused');
     setState(() {});
   }
 
+  void _resume() {
+    _game.overlays.remove('paused');
+    _game.resumeEngine();
+    setState(() {});
+  }
+
+  void _onPauseButtonPressed() {
+    SoundService.playMenuBack();
+    _pause();
+  }
+
+  void _onResumeButtonPressed() {
+    SoundService.playMenuConfirm();
+    _resume();
+  }
+
   void _backToMenu() {
+    SoundService.playMenuBack();
     AdmobService.showInterstitial();
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
@@ -63,7 +77,8 @@ class _GameScreenState extends State<GameScreen> {
   void _handleBackPress(bool didPop, Object? result) {
     if (didPop) return;
     if (_game.status == GameStatus.playing && !_game.paused) {
-      _togglePause();
+      SoundService.playMenuBack();
+      _pause();
     } else {
       _backToMenu();
     }
@@ -79,7 +94,7 @@ class _GameScreenState extends State<GameScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              _Hud(banner: _banner, onPause: _togglePause),
+              _Hud(banner: _banner, onPause: _onPauseButtonPressed),
               Expanded(
                 child: GameWidget(
                   game: _game,
@@ -103,7 +118,7 @@ class _GameScreenState extends State<GameScreen> {
                       onMenu: _backToMenu,
                     ),
                     'paused': (context, game) => _PausedOverlay(
-                      onResume: _togglePause,
+                      onResume: _onResumeButtonPressed,
                       onMenu: _backToMenu,
                     ),
                   },

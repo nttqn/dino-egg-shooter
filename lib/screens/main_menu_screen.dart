@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../services/admob_service.dart';
+import '../services/sound_service.dart';
 import '../widgets/menu_background.dart';
 import 'difficulty_select_screen.dart';
 
@@ -67,6 +68,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                         ),
                       ),
                       onPressed: () {
+                        SoundService.playMenuConfirm();
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const DifficultySelectScreen()),
                         );
