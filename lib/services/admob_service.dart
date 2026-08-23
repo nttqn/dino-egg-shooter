@@ -1,16 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-/// Google's official test ad unit IDs — safe to ship as a fallback since
-/// they only ever serve clearly-labeled test ads. Swap in real AdMob unit
-/// IDs (from the AdMob console) once the app is ready to monetize.
+/// Real AdMob ad unit IDs for this app (from the AdMob console). Ad unit
+/// IDs aren't sensitive the way the AdMob App ID or an API key would be —
+/// they're routinely committed in app source — so these are hardcoded
+/// rather than pulled from a secret/env var.
 ///
 /// google_mobile_ads only supports Android/iOS; every entry point here
 /// no-ops elsewhere (web, desktop) so the game stays testable in those
 /// environments during development.
 class AdmobService {
-  static const _testBannerId = 'ca-app-pub-3940256099942544/6300978111';
-  static const _testInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
+  static const _bannerId = 'ca-app-pub-9078637596840810/7967136806';
+  static const _interstitialId = 'ca-app-pub-9078637596840810/1045515558';
 
   static bool get _isSupported =>
       !kIsWeb &&
@@ -25,7 +26,7 @@ class AdmobService {
   static BannerAd? createBanner({AdSize size = AdSize.banner, void Function()? onLoaded}) {
     if (!_isSupported) return null;
     final banner = BannerAd(
-      adUnitId: _testBannerId,
+      adUnitId: _bannerId,
       size: size,
       request: const AdRequest(),
       listener: BannerAdListener(
@@ -44,7 +45,7 @@ class AdmobService {
   static void preloadInterstitial() {
     if (!_isSupported) return;
     InterstitialAd.load(
-      adUnitId: _testInterstitialId,
+      adUnitId: _interstitialId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) => _interstitial = ad,
