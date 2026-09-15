@@ -10,8 +10,21 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 /// no-ops elsewhere (web, desktop) so the game stays testable in those
 /// environments during development.
 class AdmobService {
-  static const _bannerId = 'ca-app-pub-9078637596840810/7967136806';
-  static const _interstitialId = 'ca-app-pub-9078637596840810/1045515558';
+  static const _androidBannerId = 'ca-app-pub-9078637596840810/7967136806';
+  static const _androidInterstitialId = 'ca-app-pub-9078637596840810/1045515558';
+
+  // No iOS AdMob app/ad units created for this project yet — fall back to
+  // Google's public iOS TEST ad unit IDs (different constants than
+  // Android's) rather than silently reusing the Android ones, which don't
+  // work cross-platform and would just fail to serve. Replace with real
+  // iOS ad unit IDs once an iOS app entry exists in the AdMob console.
+  static const _iosBannerId = 'ca-app-pub-3940256099942544/2934735716';
+  static const _iosInterstitialId = 'ca-app-pub-3940256099942544/4411468910';
+
+  static String get _bannerId =>
+      defaultTargetPlatform == TargetPlatform.iOS ? _iosBannerId : _androidBannerId;
+  static String get _interstitialId =>
+      defaultTargetPlatform == TargetPlatform.iOS ? _iosInterstitialId : _androidInterstitialId;
 
   static bool get _isSupported =>
       !kIsWeb &&

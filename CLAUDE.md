@@ -55,3 +55,14 @@ Checking CI status via `curl https://api.github.com/repos/.../actions/runs` work
 **Sound (`lib/services/sound_service.dart`)**: every SFX call is fire-and-forget and swallows its own exceptions (missing audio hardware/permissions must never interrupt gameplay). `enabledNotifier` persists via `shared_preferences` and gates every `_play()` call — the pause menu's toggle is just a `Switch` bound to it.
 
 **High scores (`lib/services/save_service.dart`)** are keyed by `(Difficulty, GameMode)` pair, not difficulty alone — scores across different modes aren't comparable (Endless can run indefinitely, Time Trial is capped at 3 minutes, Normal ramps difficulty by level).
+
+## iOS build (added 2026-09-15)
+
+`build-apk.yml`'s `build-ios` job (workflow renamed to "Build Android + iOS") is an exact copy of the pattern validated end-to-end on [[project_number99_app]] (see that project's own CLAUDE.md for the full failure-by-failure trail — automatic signing never works in headless CI, `xcodebuild` command-line signing overrides apply to every target not just Runner, google_mobile_ads needs a CocoaPods module-map fix). This project has no Game Center/leaderboard, so unlike number99 there's no entitlements-copying step.
+
+**Secrets needed** (add to this repo's GitHub secrets; most are **reusable verbatim** from any other app under the same Apple Developer team, since a Distribution cert and API key aren't per-app — only the provisioning profile is):
+- `APPSTORE_TEAM_ID`, `APPSTORE_API_KEY_ID`, `APPSTORE_API_ISSUER_ID`, `APPSTORE_API_KEY_P8`, `IOS_DIST_P12_BASE64`, `IOS_DIST_P12_PASSWORD` — copy the same values already used for number99-app's secrets.
+- `IOS_PROVISIONING_PROFILE_BASE64` — **new, per-app**: in the Apple Developer portal, register a new App ID `com.trungsmail.dinoEggShooter` (Identifiers → +), then create a new "App Store" provisioning profile against that App ID using the existing Distribution certificate, named exactly `dino-egg-shooter App Store` (must match `PROVISIONING_PROFILE_SPECIFIER`/`ExportOptions.plist` in the workflow). Download the `.mobileprovision`, base64-encode it, set as this secret.
+- `ADMOB_APP_ID_IOS` (optional): no iOS AdMob app exists for this project yet, so CI falls back to Google's public iOS TEST App ID until this is set. `lib/services/admob_service.dart` also has separate `_iosBannerId`/`_iosInterstitialId` placeholder TEST ad units for the same reason (a real bug caught on number99: reusing Android ad unit IDs on iOS silently fails to serve, since ad units are platform-specific) — replace both once a real iOS AdMob app entry exists.
+
+Same as Android: TestFlight upload is opt-in only (`workflow_dispatch` with `upload_ios: true`), never automatic on a push.
