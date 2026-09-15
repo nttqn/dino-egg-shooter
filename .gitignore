@@ -56,6 +56,14 @@ app.*.map.json
 *.keystore
 key.properties
 
+# iOS signing artifacts — never commit these either.
+*.key
+*.certSigningRequest
+*.p12
+*.cer
+*.mobileprovision
+*.p8
+
 # Original source art/audio — only the processed copies in assets/ are
 # actually shipped/used by the app.
 /assets_source/
