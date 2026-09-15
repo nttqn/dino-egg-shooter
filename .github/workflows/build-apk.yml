@@ -288,7 +288,7 @@ jobs:
             echo "DEVELOPMENT_TEAM = ${APPSTORE_TEAM_ID}"
             echo "CODE_SIGN_STYLE = Manual"
             echo "CODE_SIGN_IDENTITY = Apple Distribution"
-            echo "PROVISIONING_PROFILE_SPECIFIER = dino-egg-shooter App Store"
+            echo "PROVISIONING_PROFILE_SPECIFIER = Dino Egg Shooter App Store"
           } >> ios/Flutter/Release.xcconfig
           cat ios/Flutter/Release.xcconfig
 
@@ -312,7 +312,7 @@ jobs:
             <key>provisioningProfiles</key>
             <dict>
               <key>com.trungsmail.dinoEggShooter</key>
-              <string>dino-egg-shooter App Store</string>
+              <string>Dino Egg Shooter App Store</string>
             </dict>
           </dict>
           </plist>
