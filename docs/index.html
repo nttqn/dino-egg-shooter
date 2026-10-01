@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dino Egg Shooter</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    margin: 0;
+    color: #1a1a1a;
+    background: linear-gradient(180deg, #e8f6e8 0%, #ffffff 420px);
+  }
+  header {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 20px 24px;
+    text-align: center;
+  }
+  header img.logo { max-width: 360px; width: 100%; height: auto; }
+  header p.tagline { font-size: 18px; color: #444; margin-top: 8px; }
+  .store-links { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+  .store-links a, .store-links span {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 15px;
+    text-decoration: none; color: #fff; background: #1a1a1a;
+  }
+  .store-links span.coming-soon { background: #999; cursor: default; }
+  section { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
+  h2 { font-size: 24px; text-align: center; margin-bottom: 28px; }
+  .screenshots {
+    display: flex; gap: 16px; overflow-x: auto; padding-bottom: 12px;
+    scroll-snap-type: x mandatory;
+  }
+  .screenshots img {
+    height: 480px; width: auto; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    scroll-snap-align: start; flex-shrink: 0;
+  }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+  .feature { background: #f5f5f7; border-radius: 12px; padding: 20px; }
+  .feature h3 { margin: 0 0 8px; font-size: 17px; }
+  .feature p { margin: 0; color: #555; font-size: 14px; line-height: 1.5; }
+  footer { text-align: center; padding: 32px 20px 48px; color: #777; font-size: 14px; }
+  footer a { color: #1a56db; }
+  @media (max-width: 600px) {
+    .screenshots img { height: 360px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img class="logo" src="img/logo.png" alt="Dino Egg Shooter">
+  <h1 style="margin:4px 0 0;">Dino Egg Shooter</h1>
+  <p class="tagline">Game bắn/ghép trứng khủng long vui nhộn — chơi offline mọi lúc mọi nơi!</p>
+  <div class="store-links">
+    <a href="https://play.google.com/store/apps/details?id=com.trungsmail.dino_egg_shooter" target="_blank" rel="noopener">▶ Tải trên Google Play</a>
+    <span class="coming-soon">🍎 App Store — sắp ra mắt</span>
+  </div>
+</header>
+
+<section>
+  <h2>Ảnh trong game</h2>
+  <div class="screenshots">
+    <img src="img/menu.png" alt="Màn hình chính Dino Egg Shooter">
+    <img src="img/difficulty.png" alt="Chọn độ khó: Easy, Normal, Hard">
+    <img src="img/mode-select.png" alt="Chọn chế độ: Normal, Endless, Time Trial">
+    <img src="img/gameplay.png" alt="Gameplay bắn trứng khủng long thật">
+  </div>
+</section>
+
+<section>
+  <h2>Tính năng nổi bật</h2>
+  <div class="features">
+    <div class="feature">
+      <h3>🎯 Bắn ghép trứng cổ điển</h3>
+      <p>Ngắm, bắn, ghép từ 3 quả trứng cùng màu trở lên để chúng nổ tung — trứng dội tường chính xác theo đường ngắm.</p>
+    </div>
+    <div class="feature">
+      <h3>🦖 Khủng long đồng hành</h3>
+      <p>Chú khủng long đáng yêu luôn ôm sẵn quả trứng tiếp theo, sẵn sàng tiếp đạn cho bạn.</p>
+    </div>
+    <div class="feature">
+      <h3>🕹️ 3 chế độ chơi</h3>
+      <p>Normal vượt màn tăng dần độ khó, Endless chơi không giới hạn, Time Trial ghi điểm trong 3 phút.</p>
+    </div>
+    <div class="feature">
+      <h3>⭐ 3 mức độ khó</h3>
+      <p>Easy, Normal, Hard — phù hợp cho cả người mới lẫn cao thủ giải đố.</p>
+    </div>
+    <div class="feature">
+      <h3>📴 Chơi offline</h3>
+      <p>Không cần mạng, chơi mọi lúc mọi nơi, lưu điểm cao ngay trên máy.</p>
+    </div>
+    <div class="feature">
+      <h3>🔊 Âm thanh vui nhộn</h3>
+      <p>Hiệu ứng bắn/nổ trứng sống động, có thể bật/tắt bất cứ lúc nào trong menu tạm dừng.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p><a href="privacy-policy.html">Chính sách quyền riêng tư</a> · <a href="child-safety-standards.html">Tiêu chuẩn an toàn trẻ em</a> · <a href="support.html">Hỗ trợ</a></p>
+  <p>Liên hệ: <a href="mailto:trungsmail@gmail.com">trungsmail@gmail.com</a></p>
+</footer>
+
+</body>
+</html>
