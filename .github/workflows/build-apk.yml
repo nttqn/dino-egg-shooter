@@ -198,21 +198,11 @@ jobs:
 
       # The Podfile patch above covers pod targets; the Runner app target
       # itself needs the same setting via its own included xcconfig.
-      #
-      # Also restricts the app to iPhone only (TARGETED_DEVICE_FAMILY = 1).
-      # `flutter create` defaults to Universal ("1,2" — iPhone + iPad), which
-      # makes App Store Connect require a separate iPad screenshot set
-      # (including the newer "13-inch iPad Display" category) and implies
-      # the game should actually look right on an iPad's squarer aspect
-      # ratio — it never has been (the hex-grid board, row count, and
-      # portrait-tuned layout are phone-specific, see CLAUDE.md). iPhone-only
-      # avoids both the screenshot busywork and a real layout risk.
-      - name: Patch Debug/Release.xcconfig (module map fix + iPhone-only)
+      - name: Patch Debug/Release.xcconfig (same module map fix, for the Runner target)
         run: |
           set -e
           for f in ios/Flutter/Debug.xcconfig ios/Flutter/Release.xcconfig; do
             echo 'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES' >> "$f"
-            echo 'TARGETED_DEVICE_FAMILY = 1' >> "$f"
             cat "$f"
           done
 
