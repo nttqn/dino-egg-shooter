@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -39,10 +40,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Image.asset('assets/images/game_title.png'),
-                    ),
+                    _GameTitleLogo(screenHeight: MediaQuery.of(context).size.height),
                     const SizedBox(height: 48),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -77,6 +75,34 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// `game_title.png` (Android/web) is a widescreen composite (1672x941) that
+/// sizes itself from its own intrinsic aspect ratio. The iOS build uses a
+/// separate, square (1254x1254) "Pop-a-Saurus" composite — rendered at that
+/// same width it would be ~1.8x taller, so it's height-capped via
+/// [BoxFit.contain] instead of being left to size off intrinsic width.
+class _GameTitleLogo extends StatelessWidget {
+  const _GameTitleLogo({required this.screenHeight});
+
+  final double screenHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: SizedBox(
+          height: screenHeight * 0.24,
+          child: Image.asset('assets/images/game_title_ios.png', fit: BoxFit.contain),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Image.asset('assets/images/game_title.png'),
     );
   }
 }

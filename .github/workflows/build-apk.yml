@@ -227,6 +227,17 @@ jobs:
           # Declares no custom encryption beyond standard HTTPS, skipping
           # App Store Connect's "Export Compliance" upload prompt.
           plutil -replace ITSAppUsesNonExemptEncryption -bool NO ios/Runner/Info.plist
+          # flutter create humanizes the --project-name into CFBundleDisplayName
+          # ("Dino Egg Shooter" — the Android-only brand), which is the literal
+          # text that showed under the home-screen icon and in screenshots.
+          # Apple rejected the first iOS submission under Guideline 4.1(a)
+          # (Copycats) because that name closely matches several existing
+          # "Dino(saur) Egg Shoot(er)" apps already on the App Store — this
+          # whole naming pattern turned out to be genre-saturated, not just
+          # one specific app. The iOS-exclusive rebrand to "Pop-a-Saurus"
+          # (separate icon/logo via icon_ios.png / game_title_ios.png) is the
+          # fix; Android keeps "Dino Egg Shooter" since it was never flagged.
+          plutil -replace CFBundleDisplayName -string "Pop-a-Saurus" ios/Runner/Info.plist
 
       # A separate flutter_launcher_icons_ios.yaml (not pubspec.yaml's main
       # config, which stays android-only) — sharing one config with
