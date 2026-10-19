@@ -38,6 +38,10 @@ dependencies:
   # 2D game engine (rendering, game loop, components, collisions)
   flame: ^1.24.0
   shared_preferences: ^2.5.5
+  # Pinned: 2.5.0 (2026-10-17, Pigeon JNI rewrite) hangs getInstance() in
+  # real-device release builds — saves silently never persist. 2.4.28 is the
+  # last pre-JNI release. Test a real release APK on a device before unpinning.
+  shared_preferences_android: 2.4.28
   google_mobile_ads: ^9.1.0
   flame_audio: ^2.12.2
 
