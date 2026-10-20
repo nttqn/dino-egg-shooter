@@ -29,6 +29,16 @@ class SoundService {
   static Future<void> preload() async {
     await _loadEnabledState();
     try {
+      // By default every Android player takes audio focus, which pauses the
+      // looping background music each time an effect plays.
+      await AudioPlayer.global.setAudioContext(
+        AudioContext(
+          android: const AudioContextAndroid(audioFocus: AndroidAudioFocus.none),
+          iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
+        ),
+      );
+    } catch (_) {}
+    try {
       await FlameAudio.audioCache.loadAll([_shoot, _stick, _pop, _menuBack, _menuConfirm]);
       _pools[_shoot] = await FlameAudio.createPool(_shoot, maxPlayers: 3);
       _pools[_stick] = await FlameAudio.createPool(_stick, maxPlayers: 3);

@@ -9,8 +9,10 @@ import '../models/game_mode.dart';
 import '../models/game_state.dart';
 import '../services/admob_service.dart';
 import '../services/dino_collection.dart';
+import '../services/music_service.dart';
 import '../services/save_service.dart';
 import '../services/sound_service.dart';
+import '../widgets/audio_toggles.dart';
 import '../widgets/dino_portrait.dart';
 
 class GameScreen extends StatefulWidget {
@@ -36,11 +38,13 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     AdmobService.preloadInterstitial();
     _banner = AdmobService.createBanner(onLoaded: () => setState(() {}));
+    MusicService.playGame();
   }
 
   @override
   void dispose() {
     _banner?.dispose();
+    MusicService.playMenu();
     super.dispose();
   }
 
@@ -447,24 +451,7 @@ class _PausedOverlay extends StatelessWidget {
               style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            ValueListenableBuilder<bool>(
-              valueListenable: SoundService.enabledNotifier,
-              builder: (context, enabled, _) => Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    enabled ? Icons.volume_up : Icons.volume_off,
-                    color: Colors.white70,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('Âm thanh', style: TextStyle(color: Colors.white70)),
-                  Switch(
-                    value: enabled,
-                    onChanged: SoundService.setEnabled,
-                  ),
-                ],
-              ),
-            ),
+            const AudioToggleSwitches(),
             const SizedBox(height: 12),
             Row(
               mainAxisSize: MainAxisSize.min,

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../services/admob_service.dart';
+import '../services/music_service.dart';
 import '../services/sound_service.dart';
+import '../widgets/audio_toggles.dart';
 import '../widgets/menu_background.dart';
 import 'difficulty_select_screen.dart';
 import 'dino_park_screen.dart';
@@ -22,6 +24,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   void initState() {
     super.initState();
     _banner = AdmobService.createBanner(onLoaded: () => setState(() {}));
+    MusicService.playMenu();
   }
 
   @override
@@ -36,6 +39,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            const Align(alignment: Alignment.topRight, child: AudioToggleIcons()),
             Expanded(
               child: Center(
                 child: Column(
