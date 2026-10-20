@@ -94,7 +94,7 @@ class _SpeciesCard extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           child: Column(
             children: [
-              Expanded(child: Center(child: DinoPortrait(species: species, size: 96, locked: !owned))),
+              Expanded(child: Center(child: DinoPortrait(species: species, size: 128, locked: !owned))),
               const SizedBox(height: 6),
               Text(
                 owned ? info.nameVi : '???',

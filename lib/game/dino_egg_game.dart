@@ -171,7 +171,7 @@ class DinoEggGame extends FlameGame
     companionDino = CompanionDino(
       species: companion,
       position: Vector2(launcherPosition.x + _bubbleDiameter * 2.1, size.y - _bubbleDiameter * 0.15),
-      height: _bubbleDiameter * 1.7,
+      height: _bubbleDiameter * 2.2,
     );
     add(companionDino);
 
