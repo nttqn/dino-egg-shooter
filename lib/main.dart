@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'screens/main_menu_screen.dart';
 import 'services/admob_service.dart';
+import 'services/dino_collection.dart';
 import 'services/sound_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   AdmobService.init();
   SoundService.preload();
+  DinoCollection.init();
   runApp(const DinoEggShooterApp());
 }
 

@@ -3,10 +3,16 @@ import '../grid/hex_grid.dart';
 /// Minimum cluster size for a match to pop.
 const int kMinMatchSize = 3;
 
-/// Flood-fills from (row, col) across same-colored, connected cells.
-/// Returns the matching cluster, or an empty list if it's below
+/// The cluster [findMatch] would pop, or an empty list if it's below
 /// [kMinMatchSize] (i.e. nothing should pop).
 List<(int, int)> findMatch(HexGrid grid, int row, int col) {
+  final cluster = connectedSameColor(grid, row, col);
+  return cluster.length >= kMinMatchSize ? cluster : const [];
+}
+
+/// Flood-fills from (row, col) across same-colored, connected cells,
+/// regardless of size.
+List<(int, int)> connectedSameColor(HexGrid grid, int row, int col) {
   final origin = grid.cellAt(row, col);
   final color = origin.color;
   if (color == null) return const [];
@@ -28,5 +34,5 @@ List<(int, int)> findMatch(HexGrid grid, int row, int col) {
     }
   }
 
-  return cluster.length >= kMinMatchSize ? cluster : const [];
+  return cluster;
 }

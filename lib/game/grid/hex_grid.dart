@@ -6,12 +6,14 @@ import 'dart:ui';
 enum EggColor { red, blue, green, yellow, purple }
 
 /// A single slot in the hex grid. `color` is null when the slot is empty.
+/// [special] marks a glowing egg that hatches a dinosaur when popped.
 class GridCell {
   final int row;
   final int col;
   EggColor? color;
+  bool special;
 
-  GridCell({required this.row, required this.col, this.color});
+  GridCell({required this.row, required this.col, this.color, this.special = false});
 
   bool get isEmpty => color == null;
 }
@@ -100,24 +102,50 @@ class HexGrid {
     return result;
   }
 
-  void place(int row, int col, EggColor color) {
-    _cells[row][col].color = color;
+  void place(int row, int col, EggColor color, {bool special = false}) {
+    _cells[row][col]
+      ..color = color
+      ..special = special;
   }
 
   void clear(int row, int col) {
-    _cells[row][col].color = null;
+    _cells[row][col]
+      ..color = null
+      ..special = false;
   }
 
   /// All occupied cells, e.g. for rendering or iteration.
   Iterable<GridCell> get occupiedCells =>
       _cells.expand((row) => row).where((cell) => !cell.isEmpty);
 
-  List<EggColor?> rowColors(int row) =>
-      _cells[row].map((cell) => cell.color).toList();
+  int get specialCount => occupiedCells.where((cell) => cell.special).length;
 
-  void setRowColors(int row, List<EggColor?> colors) {
+  void _copyRow(int from, int to) {
     for (var c = 0; c < cols; c++) {
-      _cells[row][c].color = colors[c];
+      _cells[to][c]
+        ..color = _cells[from][c].color
+        ..special = _cells[from][c].special;
+    }
+  }
+
+  /// Moves every row down one, dropping whatever was in the last row, and
+  /// fills row 0 with [newTop] (marking [specialCol] as a glowing egg).
+  void shiftRowsDown(List<EggColor> newTop, {int? specialCol}) {
+    for (var r = rows - 1; r >= 1; r--) {
+      _copyRow(r - 1, r);
+    }
+    for (var c = 0; c < cols; c++) {
+      place(0, c, newTop[c], special: c == specialCol);
+    }
+  }
+
+  /// Moves every row up one, discarding row 0 and leaving the last row empty.
+  void shiftRowsUp() {
+    for (var r = 0; r < rows - 1; r++) {
+      _copyRow(r + 1, r);
+    }
+    for (var c = 0; c < cols; c++) {
+      clear(rows - 1, c);
     }
   }
 }

@@ -9,18 +9,18 @@ import '../dino_egg_game.dart';
 /// center of the screen, holds, then shrinks away — 2 seconds total —
 /// shown at the start of a round and, in Normal mode, at each new level.
 class AnnouncementText extends TextComponent with HasGameReference<DinoEggGame> {
-  AnnouncementText(String text)
+  AnnouncementText(String text, {double fontSize = 52})
     : super(
         text: text,
         anchor: Anchor.center,
         priority: 20,
         textRenderer: TextPaint(
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 52,
+            fontSize: fontSize,
             fontWeight: FontWeight.w900,
             letterSpacing: 4,
-            shadows: [
+            shadows: const [
               Shadow(color: Colors.black87, blurRadius: 10, offset: Offset(0, 3)),
             ],
           ),

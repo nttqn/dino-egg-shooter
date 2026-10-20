@@ -4,11 +4,14 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../game/dino_egg_game.dart';
 import '../models/difficulty.dart';
+import '../models/dino_species.dart';
 import '../models/game_mode.dart';
 import '../models/game_state.dart';
 import '../services/admob_service.dart';
+import '../services/dino_collection.dart';
 import '../services/save_service.dart';
 import '../services/sound_service.dart';
+import '../widgets/dino_portrait.dart';
 
 class GameScreen extends StatefulWidget {
   final Difficulty difficulty;
@@ -21,7 +24,11 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  late final DinoEggGame _game = DinoEggGame(difficulty: widget.difficulty, mode: widget.mode);
+  late final DinoEggGame _game = DinoEggGame(
+    difficulty: widget.difficulty,
+    mode: widget.mode,
+    companion: DinoCollection.selected.value,
+  );
   BannerAd? _banner;
 
   @override
@@ -230,6 +237,7 @@ class _BottomHud extends StatelessWidget {
                 ),
               ),
             ),
+          _AbilityButton(game: game),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -247,6 +255,78 @@ class _BottomHud extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The companion's skill: a charge ring around its portrait. Tapping it
+/// when full uses the skill; otherwise it explains what the skill does.
+class _AbilityButton extends StatelessWidget {
+  final DinoEggGame game;
+
+  const _AbilityButton({required this.game});
+
+  void _onTap(BuildContext context) {
+    if (game.abilityReady) {
+      game.activateAbility();
+      return;
+    }
+    final ability = game.companion.info.ability;
+    final message = game.armedModifier != null
+        ? '${ability.title}: bắn quả trứng tiếp theo để dùng kỹ năng.'
+        : '${ability.title}: ${ability.description} Nổ trứng để nạp đầy năng lượng.';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final companionColor = game.companion.info.color;
+    return AnimatedBuilder(
+      animation: Listenable.merge([game.energyNotifier, game.armedNotifier]),
+      builder: (context, _) {
+        final armed = game.armedModifier != null;
+        final ready = game.abilityReady;
+        final ringColor = armed
+            ? const Color(0xFF66BB6A)
+            : ready
+            ? const Color(0xFFFFC107)
+            : companionColor;
+        return GestureDetector(
+          onTap: () => _onTap(context),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: ready
+                  ? const [BoxShadow(color: Color(0xAAFFC107), blurRadius: 12, spreadRadius: 2)]
+                  : null,
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox.expand(
+                  child: CircularProgressIndicator(
+                    value: armed ? 1 : game.energyNotifier.value,
+                    strokeWidth: 4,
+                    backgroundColor: Colors.white12,
+                    color: ringColor,
+                  ),
+                ),
+                DinoPortrait(species: game.companion, size: 34),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

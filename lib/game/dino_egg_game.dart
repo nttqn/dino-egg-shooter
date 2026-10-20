@@ -8,14 +8,19 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart' hide PointerMoveEvent;
 
 import '../models/difficulty.dart';
+import '../models/dino_species.dart';
 import '../models/game_mode.dart';
 import '../models/game_state.dart';
+import '../services/dino_collection.dart';
 import '../services/sound_service.dart';
+import 'effects/hatch_banner.dart';
 import 'effects/pop_effect.dart';
 import 'entities/aim_line.dart';
 import 'entities/announcement_text.dart';
 import 'entities/background_layer.dart';
+import 'entities/companion_dino.dart';
 import 'entities/dino_npc.dart';
+import 'entities/dino_portraits.dart';
 import 'entities/egg_bubble.dart';
 import 'entities/launcher.dart';
 import 'entities/loaded_egg_indicator.dart';
@@ -34,6 +39,19 @@ const int kGridCols = 8;
 /// never fire sideways or into the launcher itself.
 const double _minAngleFromHorizontal = 0.15;
 
+/// Companion skill charge (0..1) gained per egg popped by a normal shot.
+const double kEnergyPerMatched = 0.07;
+const double kEnergyPerFallen = 0.04;
+const double kEnergyPerHatch = 0.25;
+
+/// Chance that a pushed-down row carries a glowing (hatchable) egg, and the
+/// most of them allowed on the board at once.
+const double kSpecialEggChancePerRow = 0.12;
+const int kMaxSpecialEggs = 2;
+
+/// How long a hatch banner occupies the screen, used to queue several.
+const double _hatchBannerSlot = 2.5;
+
 /// Result of a swept collision check: the cell that was hit, that cell's
 /// pixel center, the exact contact point along the ball's path, and how
 /// far into that frame's movement (in [0, 1]) the hit occurred.
@@ -47,14 +65,20 @@ class _Collision {
 
 class DinoEggGame extends FlameGame
     with TapCallbacks, DragCallbacks, PointerMoveCallbacks {
-  DinoEggGame({this.difficulty = Difficulty.normal, this.mode = GameMode.endless});
+  DinoEggGame({
+    this.difficulty = Difficulty.normal,
+    this.mode = GameMode.endless,
+    this.companion = DinoCollection.starter,
+  });
 
   final Difficulty difficulty;
   final GameMode mode;
+  final DinoSpecies companion;
 
   late HexGrid grid;
   late Launcher launcher;
   late DinoNpc dinoNpc;
+  late CompanionDino companionDino;
   late BackgroundLayer background;
   late Vector2 launcherPosition;
   late double _bubbleDiameter;
@@ -86,11 +110,23 @@ class DinoEggGame extends FlameGame
   final ValueNotifier<int> timeRemainingNotifier = ValueNotifier<int>(kTimeTrialSeconds);
   double _timeAccumulator = 0;
 
+  /// Companion skill charge, 0..1; the skill is usable at 1.
+  final ValueNotifier<double> energyNotifier = ValueNotifier<double>(0);
+
+  /// A skill waiting to be applied to the next shot, if any.
+  final ValueNotifier<ShotModifier?> armedNotifier = ValueNotifier<ShotModifier?>(null);
+  ShotModifier? get armedModifier => armedNotifier.value;
+
   int shotsFired = 0;
 
   final Map<(int, int), EggBubble> _bubbleAt = {};
   EggBubble? _projectile;
   Vector2? _projectileVelocity;
+  ShotModifier? _projectileModifier;
+  int _piercedCount = 0;
+
+  double _elapsed = 0;
+  double _nextHatchBannerAt = 0;
 
   final _random = Random();
 
@@ -112,6 +148,7 @@ class DinoEggGame extends FlameGame
     await loadEggSprites(images);
     await loadDinoAnimations(images);
     await loadBackgrounds(images);
+    await loadDinoPortraits(images);
 
     background = BackgroundLayer();
     add(background);
@@ -130,6 +167,13 @@ class DinoEggGame extends FlameGame
       eggDiameter: _bubbleDiameter,
     );
     add(dinoNpc);
+
+    companionDino = CompanionDino(
+      species: companion,
+      position: Vector2(launcherPosition.x + _bubbleDiameter * 2.1, size.y - _bubbleDiameter * 0.15),
+      height: _bubbleDiameter * 1.7,
+    );
+    add(companionDino);
 
     add(LoadedEggIndicator());
     add(AimLine());
@@ -152,6 +196,8 @@ class DinoEggGame extends FlameGame
     _projectile?.removeFromParent();
     _projectile = null;
     _projectileVelocity = null;
+    _projectileModifier = null;
+    _piercedCount = 0;
 
     _populateBoard();
 
@@ -162,6 +208,8 @@ class DinoEggGame extends FlameGame
     levelNotifier.value = 1;
     timeRemainingNotifier.value = kTimeTrialSeconds;
     _timeAccumulator = 0;
+    energyNotifier.value = 0;
+    armedNotifier.value = null;
     currentColor = _randomAvailableColor();
     nextColor = _randomAvailableColor();
 
@@ -190,7 +238,16 @@ class DinoEggGame extends FlameGame
     // keeping a few empty rows of buffer above the launcher.
     final initialFillRows = (_rowCount * 0.6).round().clamp(3, _rowCount - 3);
     _fillTestRows(rowCount: initialFillRows);
+    _placeStartingSpecialEgg(filledRows: initialFillRows);
     _renderGridBubbles();
+  }
+
+  /// Every fresh board gets one glowing egg, in the lower half of the
+  /// filled rows so it's reachable early rather than buried at the top.
+  void _placeStartingSpecialEgg({required int filledRows}) {
+    final lower = grid.occupiedCells.where((cell) => cell.row >= filledRows ~/ 2).toList();
+    if (lower.isEmpty) return;
+    lower[_random.nextInt(lower.length)].special = true;
   }
 
   /// Called by a round-end overlay's "play again" action.
@@ -203,6 +260,7 @@ class DinoEggGame extends FlameGame
   @override
   void update(double dt) {
     super.update(dt);
+    _elapsed += dt;
     _advanceProjectile(dt);
     if (mode == GameMode.timeTrial && status == GameStatus.playing) {
       _updateCountdown(dt);
@@ -225,6 +283,7 @@ class DinoEggGame extends FlameGame
     _projectile?.removeFromParent();
     _projectile = null;
     _projectileVelocity = null;
+    _projectileModifier = null;
     overlays.add('timeUp');
   }
 
@@ -261,6 +320,86 @@ class DinoEggGame extends FlameGame
     launcher.barrelAngle = angle;
   }
 
+  // --- Companion skill ---------------------------------------------------
+
+  bool get abilityReady => energyNotifier.value >= 1 && armedNotifier.value == null;
+
+  /// Spends a full charge on [companion]'s skill: board-wide skills act
+  /// immediately, shot skills arm the next egg fired.
+  void activateAbility() {
+    if (status != GameStatus.playing || paused) return;
+    if (!abilityReady || _projectile != null) return;
+
+    energyNotifier.value = 0;
+    companionDino.celebrate();
+    final ability = companion.info.ability;
+    add(AnnouncementText(ability.title.toUpperCase(), fontSize: 30));
+
+    switch (ability) {
+      case DinoAbility.stomp:
+        _stomp();
+      case DinoAbility.lift:
+        _eatTopRow();
+      case DinoAbility.pierce:
+        armedNotifier.value = ShotModifier.pierce;
+      case DinoAbility.bomb:
+        armedNotifier.value = ShotModifier.bomb;
+      case DinoAbility.rainbow:
+        armedNotifier.value = ShotModifier.rainbow;
+    }
+  }
+
+  void _addEnergy(double amount) {
+    energyNotifier.value = min(1.0, energyNotifier.value + amount);
+  }
+
+  /// Clears the two lowest occupied rows.
+  void _stomp() {
+    final occupied = grid.occupiedCells.toList();
+    if (occupied.isEmpty) return;
+    final lowest = occupied.map((cell) => cell.row).reduce(max);
+    _popCells([
+      for (final cell in occupied)
+        if (cell.row >= lowest - 1) (cell.row, cell.col),
+    ]);
+    _checkWinLose();
+  }
+
+  /// Removes row 0 and moves the whole pile up one row.
+  void _eatTopRow() {
+    final eaten = [
+      for (var c = 0; c < grid.cols; c++)
+        if (!grid.cellAt(0, c).isEmpty) (0, c),
+    ];
+    for (final coord in eaten) {
+      grid.clear(coord.$1, coord.$2);
+      _popBubbleAt(coord);
+    }
+    grid.shiftRowsUp();
+    _rerenderAllBubbles();
+
+    final fallen = _removeFloatingCells();
+    _awardPops(eaten.length + fallen);
+    _checkWinLose();
+  }
+
+  /// Pops [cells] regardless of color, then drops anything left floating.
+  /// Doesn't check win/lose — callers decide when that runs.
+  void _popCells(List<(int, int)> cells) {
+    for (final (r, c) in cells) {
+      grid.clear(r, c);
+      _popBubbleAt((r, c));
+    }
+    final fallen = _removeFloatingCells();
+    _awardPops(cells.length + fallen);
+  }
+
+  void _awardPops(int count) {
+    if (count <= 0) return;
+    scoreNotifier.value += count * 10;
+    SoundService.playPop();
+  }
+
   // --- Firing & projectile flight ---------------------------------------
 
   void _fire() {
@@ -274,13 +413,19 @@ class DinoEggGame extends FlameGame
     final diameter = grid.bubbleDiameter;
     final direction = Vector2(cos(aimAngle), sin(aimAngle));
 
+    final modifier = armedNotifier.value;
+    armedNotifier.value = null;
+
     final bubble = EggBubble(
       color: currentColor!,
       diameter: diameter,
       position: launcherPosition.clone(),
+      modifier: modifier,
     );
     _projectile = bubble;
     _projectileVelocity = direction * diameter * 11;
+    _projectileModifier = modifier;
+    _piercedCount = 0;
     add(bubble);
     SoundService.playShoot();
 
@@ -322,14 +467,23 @@ class DinoEggGame extends FlameGame
     final from = bubble.position.clone();
     var to = from + velocity * dt;
 
-    // Sweep the whole segment travelled this frame against every existing
-    // bubble using their true touching distance (one full diameter, since
-    // both circles have the same radius) — this is what actually stops the
-    // ball from being able to slip past the outer shell of a cluster.
-    final hit = _sweepCollision(from, to);
-    if (hit != null) {
-      _settleProjectile(bubble, hit);
-      return;
+    final piercing = _projectileModifier == ShotModifier.pierce;
+    if (piercing) {
+      for (final coord in _sweepAll(from, to)) {
+        grid.clear(coord.$1, coord.$2);
+        _popBubbleAt(coord);
+        _piercedCount++;
+      }
+    } else {
+      // Sweep the whole segment travelled this frame against every existing
+      // bubble using their true touching distance (one full diameter, since
+      // both circles have the same radius) — this is what actually stops the
+      // ball from being able to slip past the outer shell of a cluster.
+      final hit = _sweepCollision(from, to);
+      if (hit != null) {
+        _settleProjectile(bubble, hit);
+        return;
+      }
     }
 
     final radius = bubble.radius;
@@ -343,13 +497,14 @@ class DinoEggGame extends FlameGame
     bubble.position = to;
 
     if (to.y - radius <= 0) {
-      _settleAtTop(bubble, to);
+      if (piercing) {
+        _finishPierce(bubble);
+      } else {
+        _settleAtTop(bubble, to);
+      }
     }
   }
 
-  /// The first existing bubble whose collision circle the segment
-  /// [from]->[to] enters this frame, via ray-circle intersection.
-  ///
   /// Using the true full-diameter touch distance is mathematically correct
   /// but means an exactly-one-cell gap between two neighbors is *always*
   /// too narrow to thread (closest approach through it is ≈0.866×diameter)
@@ -357,41 +512,70 @@ class DinoEggGame extends FlameGame
   /// generous" rather than as intentional physics. Shrinking the effective
   /// radius trades a bit of realism for gaps that are visually one cell
   /// wide actually being shootable.
+  double get _touchDistance => grid.bubbleDiameter * 0.82;
+
+  /// How far along the segment `from + d*t` (t in [0, 1]) it first comes
+  /// within [_touchDistance] of [center], via ray-circle intersection; null
+  /// if it never does this frame.
+  double? _hitTime(Vector2 from, Vector2 d, double a, Vector2 center) {
+    final touchDistance = _touchDistance;
+    final f = from - center;
+    final c = f.dot(f) - touchDistance * touchDistance;
+    if (a <= 1e-9) return c <= 0 ? 0 : null;
+
+    final b = 2 * f.dot(d);
+    final discriminant = b * b - 4 * a * c;
+    if (discriminant < 0) return null;
+    final t1 = (-b - sqrt(discriminant)) / (2 * a);
+    if (t1 >= 0 && t1 <= 1) return t1;
+    if (c <= 0) return 0; // already overlapping at the start of this frame.
+    return null;
+  }
+
+  Vector2 _centerOf((int, int) cell) {
+    final offset = grid.cellCenter(cell.$1, cell.$2);
+    return Vector2(offset.dx, offset.dy);
+  }
+
+  /// The first existing bubble the segment [from]->[to] touches this frame.
   _Collision? _sweepCollision(Vector2 from, Vector2 to) {
-    final touchDistance = grid.bubbleDiameter * 0.82;
     final d = to - from;
     final a = d.dot(d);
 
     _Collision? earliest;
-    for (final entry in _bubbleAt.entries) {
-      final centerOffset = grid.cellCenter(entry.key.$1, entry.key.$2);
-      final center = Vector2(centerOffset.dx, centerOffset.dy);
-      final f = from - center;
-      final c = f.dot(f) - touchDistance * touchDistance;
-
-      double? t;
-      if (a <= 1e-9) {
-        if (c <= 0) t = 0;
-      } else {
-        final b = 2 * f.dot(d);
-        final discriminant = b * b - 4 * a * c;
-        if (discriminant >= 0) {
-          final sqrtDisc = sqrt(discriminant);
-          final t1 = (-b - sqrtDisc) / (2 * a);
-          if (t1 >= 0 && t1 <= 1) {
-            t = t1;
-          } else if (c <= 0) {
-            t = 0; // already overlapping at the start of this frame.
-          }
-        }
-      }
-
+    for (final cell in _bubbleAt.keys) {
+      final center = _centerOf(cell);
+      final t = _hitTime(from, d, a, center);
       if (t == null) continue;
       if (earliest == null || t < earliest.t) {
-        earliest = _Collision(entry.key, center, from + d * t, t);
+        earliest = _Collision(cell, center, from + d * t, t);
       }
     }
     return earliest;
+  }
+
+  /// Every existing bubble the segment [from]->[to] touches this frame.
+  List<(int, int)> _sweepAll(Vector2 from, Vector2 to) {
+    final d = to - from;
+    final a = d.dot(d);
+    return [
+      for (final cell in _bubbleAt.keys)
+        if (_hitTime(from, d, a, _centerOf(cell)) != null) cell,
+    ];
+  }
+
+  /// A piercing egg doesn't stick anywhere: once it reaches the top, score
+  /// everything it tore through plus whatever that left floating.
+  void _finishPierce(EggBubble bubble) {
+    _projectile = null;
+    _projectileVelocity = null;
+    _projectileModifier = null;
+    bubble.removeFromParent();
+
+    final fallen = _removeFloatingCells();
+    _awardPops(_piercedCount + fallen);
+    _piercedCount = 0;
+    _afterShotResolved();
   }
 
   void _settleAtTop(EggBubble bubble, Vector2 position) {
@@ -419,11 +603,7 @@ class DinoEggGame extends FlameGame
       var bestScore = -double.infinity;
       for (final neighbor in grid.neighborsOf(hit.cell.$1, hit.cell.$2)) {
         if (!grid.cellAt(neighbor.$1, neighbor.$2).isEmpty) continue;
-        final neighborCenterOffset = grid.cellCenter(neighbor.$1, neighbor.$2);
-        final dir = Vector2(
-          neighborCenterOffset.dx - hit.hitCenter.x,
-          neighborCenterOffset.dy - hit.hitCenter.y,
-        ).normalized();
+        final dir = (_centerOf(neighbor) - hit.hitCenter).normalized();
         final score = dir.dot(normalDir);
         if (score > bestScore) {
           bestScore = score;
@@ -458,16 +638,30 @@ class DinoEggGame extends FlameGame
   }
 
   void _place(EggBubble bubble, (int, int) landing) {
+    final modifier = _projectileModifier;
     _projectile = null;
     _projectileVelocity = null;
+    _projectileModifier = null;
     bubble.removeFromParent();
 
     final (row, col) = landing;
-    grid.place(row, col, bubble.color);
-    _bubbleAt[(row, col)] = _spawnGridBubble(row, col, bubble.color);
+    final color = modifier == ShotModifier.rainbow
+        ? _bestRainbowColor(landing, bubble.color)
+        : bubble.color;
+    grid.place(row, col, color);
+    _bubbleAt[(row, col)] = _spawnGridBubble(row, col, color);
     SoundService.playStick();
 
-    _resolveMatchesAndFalls(row, col);
+    if (modifier == ShotModifier.bomb) {
+      _popCells(_cellsWithinRings(landing, 2));
+    } else {
+      // Skill-boosted shots don't recharge the skill, so it can't chain.
+      _resolveMatchesAndFalls(row, col, chargesEnergy: modifier == null);
+    }
+    _afterShotResolved();
+  }
+
+  void _afterShotResolved() {
     if (_checkWinLose()) return;
 
     if (shotsFired % _effectiveShotsPerPushDown == 0) {
@@ -477,9 +671,47 @@ class DinoEggGame extends FlameGame
     }
   }
 
+  /// Of the colors touching [landing], the one that would join the largest
+  /// same-color cluster there.
+  EggColor _bestRainbowColor((int, int) landing, EggColor fallback) {
+    final (row, col) = landing;
+    final candidates = {
+      for (final (r, c) in grid.neighborsOf(row, col)) grid.cellAt(r, c).color,
+    }.whereType<EggColor>();
+
+    var best = fallback;
+    var bestSize = 0;
+    for (final color in candidates) {
+      grid.place(row, col, color);
+      final size = connectedSameColor(grid, row, col).length;
+      grid.clear(row, col);
+      if (size > bestSize) {
+        bestSize = size;
+        best = color;
+      }
+    }
+    return best;
+  }
+
+  /// Occupied cells within [rings] steps of [center], including itself.
+  List<(int, int)> _cellsWithinRings((int, int) center, int rings) {
+    final reached = <(int, int)>{center};
+    var frontier = [center];
+    for (var i = 0; i < rings; i++) {
+      final next = <(int, int)>[];
+      for (final (r, c) in frontier) {
+        for (final neighbor in grid.neighborsOf(r, c)) {
+          if (reached.add(neighbor)) next.add(neighbor);
+        }
+      }
+      frontier = next;
+    }
+    return reached.where((cell) => !grid.cellAt(cell.$1, cell.$2).isEmpty).toList();
+  }
+
   // --- Matching & falling -------------------------------------------------
 
-  void _resolveMatchesAndFalls(int row, int col) {
+  void _resolveMatchesAndFalls(int row, int col, {bool chargesEnergy = true}) {
     final matched = findMatch(grid, row, col);
     for (final (r, c) in matched) {
       grid.clear(r, c);
@@ -491,9 +723,9 @@ class DinoEggGame extends FlameGame
     // let disconnected bubbles from an earlier state linger unnoticed.
     final fallen = _removeFloatingCells();
 
-    if (matched.isNotEmpty || fallen > 0) {
-      scoreNotifier.value += (matched.length + fallen) * 10;
-      SoundService.playPop();
+    _awardPops(matched.length + fallen);
+    if (chargesEnergy) {
+      _addEnergy(matched.length * kEnergyPerMatched + fallen * kEnergyPerFallen);
     }
   }
 
@@ -509,27 +741,48 @@ class DinoEggGame extends FlameGame
   }
 
   /// Removes the bubble component at [coord] and fires a small particle
-  /// burst in its color at its last position.
+  /// burst in its color at its last position. A glowing egg hatches.
   void _popBubbleAt((int, int) coord) {
     final bubble = _bubbleAt.remove(coord);
     if (bubble == null) return;
     add(PopEffect(position: bubble.position.clone(), color: bubble.color, diameter: grid.bubbleDiameter));
     bubble.removeFromParent();
+    if (bubble.special) _hatchAt(bubble.position.clone());
+  }
+
+  /// Hatches a dinosaur from a popped glowing egg, adding it to the
+  /// collection (saved immediately, so a later loss doesn't undo it).
+  void _hatchAt(Vector2 position) {
+    final species = DinoCollection.pickHatchling(_random);
+    final isNew = DinoCollection.recordHatch(species);
+
+    final delay = max(0.0, _nextHatchBannerAt - _elapsed);
+    _nextHatchBannerAt = _elapsed + delay + _hatchBannerSlot;
+    add(HatchSparkle(position: position));
+    add(HatchBanner(species: species, isNew: isNew, startDelay: delay));
+
+    scoreNotifier.value += isNew ? 100 : 50;
+    _addEnergy(kEnergyPerHatch);
+    SoundService.playMenuConfirm();
   }
 
   /// Shifts every row down by one and fills a fresh row at the top. Any
   /// bubbles that were already in the bottom row are pushed past the
   /// boundary — that's a loss, checked by the caller via [_checkWinLose].
   void _pushRowDown() {
-    for (var r = grid.rows - 1; r >= 1; r--) {
-      grid.setRowColors(r, grid.rowColors(r - 1));
-    }
     final colors = _palette;
-    grid.setRowColors(
-      0,
+    final specialCol =
+        grid.specialCount < kMaxSpecialEggs && _random.nextDouble() < kSpecialEggChancePerRow
+            ? _random.nextInt(grid.cols)
+            : null;
+    grid.shiftRowsDown(
       List.generate(grid.cols, (_) => colors[_random.nextInt(colors.length)]),
+      specialCol: specialCol,
     );
+    _rerenderAllBubbles();
+  }
 
+  void _rerenderAllBubbles() {
     for (final bubble in _bubbleAt.values) {
       bubble.removeFromParent();
     }
@@ -541,6 +794,7 @@ class DinoEggGame extends FlameGame
   /// as a result of the latest board mutation. Clearing the board never
   /// ends the round — see [_boardCleared].
   bool _checkWinLose() {
+    if (status != GameStatus.playing) return status == GameStatus.lost;
     if (grid.occupiedCells.isEmpty) {
       _boardCleared();
       return false;
@@ -577,6 +831,8 @@ class DinoEggGame extends FlameGame
     _projectile?.removeFromParent();
     _projectile = null;
     _projectileVelocity = null;
+    _projectileModifier = null;
+    armedNotifier.value = null;
 
     final bubbles = _bubbleAt.values.toList();
     _bubbleAt.clear();
@@ -645,16 +901,18 @@ class DinoEggGame extends FlameGame
 
   void _renderGridBubbles() {
     for (final cell in grid.occupiedCells) {
-      _bubbleAt[(cell.row, cell.col)] = _spawnGridBubble(cell.row, cell.col, cell.color!);
+      _bubbleAt[(cell.row, cell.col)] =
+          _spawnGridBubble(cell.row, cell.col, cell.color!, special: cell.special);
     }
   }
 
-  EggBubble _spawnGridBubble(int row, int col, EggColor color) {
+  EggBubble _spawnGridBubble(int row, int col, EggColor color, {bool special = false}) {
     final center = grid.cellCenter(row, col);
     final bubble = EggBubble(
       color: color,
       diameter: grid.bubbleDiameter,
       position: Vector2(center.dx, center.dy),
+      special: special,
     );
     add(bubble);
     return bubble;

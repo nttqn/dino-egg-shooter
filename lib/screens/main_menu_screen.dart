@@ -6,6 +6,7 @@ import '../services/admob_service.dart';
 import '../services/sound_service.dart';
 import '../widgets/menu_background.dart';
 import 'difficulty_select_screen.dart';
+import 'dino_park_screen.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -42,24 +43,19 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                   children: [
                     _GameTitleLogo(screenHeight: MediaQuery.of(context).size.height),
                     const SizedBox(height: 48),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6D4C41),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                    _MenuButton(
+                      label: 'CHƠI',
+                      color: const Color(0xFF6D4C41),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const DifficultySelectScreen()),
                       ),
-                      onPressed: () {
-                        SoundService.playMenuConfirm();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const DifficultySelectScreen()),
-                        );
-                      },
-                      child: const Text(
-                        'CHƠI',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    _MenuButton(
+                      label: 'VƯỜN KHỦNG LONG',
+                      color: const Color(0xFF2E7D32),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const DinoParkScreen()),
                       ),
                     ),
                   ],
@@ -79,11 +75,37 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 }
 
-/// `game_title.png` (Android/web) is a widescreen composite (1672x941) that
-/// sizes itself from its own intrinsic aspect ratio. The iOS build uses a
-/// separate, square (1254x1254) "Pop-a-Saurus" composite — rendered at that
-/// same width it would be ~1.8x taller, so it's height-capped via
-/// [BoxFit.contain] instead of being left to size off intrinsic width.
+class _MenuButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _MenuButton({required this.label, required this.color, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 260,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        onPressed: () {
+          SoundService.playMenuConfirm();
+          onPressed();
+        },
+        child: Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+}
+
+/// Android/web show the "Dino Egg Shooter" logo at its intrinsic size; the
+/// iOS build ("Pop-a-Saurus") uses its own logo, height-capped via
+/// [BoxFit.contain] so it can't push the menu buttons off a short screen.
 class _GameTitleLogo extends StatelessWidget {
   const _GameTitleLogo({required this.screenHeight});
 

@@ -11,6 +11,14 @@ import 'egg_bubble.dart';
 class LoadedEggIndicator extends Component with HasGameReference<DinoEggGame> {
   LoadedEggIndicator() : super(priority: 5);
 
+  double _time = 0;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _time += dt;
+  }
+
   @override
   void render(Canvas canvas) {
     if (game.isTossing) return;
@@ -20,26 +28,28 @@ class LoadedEggIndicator extends Component with HasGameReference<DinoEggGame> {
 
     final diameter = game.grid.bubbleDiameter * 0.8;
     final center = game.launcherPosition;
+    final offset = Offset(center.x, center.y);
+    final radius = diameter / 2;
     final sprite = eggSpriteFor(current);
     if (sprite != null) {
       sprite.render(
         canvas,
-        position: Vector2(center.x - diameter / 2, center.y - diameter / 2),
+        position: Vector2(center.x - radius, center.y - radius),
         size: Vector2.all(diameter),
       );
-      return;
+    } else {
+      canvas.drawCircle(offset, radius, Paint()..color = eggColorPalette[current]!);
+      canvas.drawCircle(
+        offset,
+        radius,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.3)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
     }
 
-    final radius = diameter / 2;
-    final offset = Offset(center.x, center.y);
-    canvas.drawCircle(offset, radius, Paint()..color = eggColorPalette[current]!);
-    canvas.drawCircle(
-      offset,
-      radius,
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
+    final armed = game.armedModifier;
+    if (armed != null) paintModifierRing(canvas, offset, radius, armed, _time);
   }
 }
