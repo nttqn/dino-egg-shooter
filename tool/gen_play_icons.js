@@ -82,6 +82,7 @@ async function make(name, color, glow, layers) {
   await sharp({ create: { width: S, height: S, channels: 3, background: '#1B3A24' } })
     .composite(comps)
     .flatten({ background: '#1B3A24' })
+    .removeAlpha()
     .png({ compressionLevel: 9 })
     .toFile(path.join(OUT, `${name}.png`));
   console.log(name);
