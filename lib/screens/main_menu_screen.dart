@@ -7,6 +7,7 @@ import '../services/music_service.dart';
 import '../services/sound_service.dart';
 import '../widgets/audio_toggles.dart';
 import '../widgets/menu_background.dart';
+import '../widgets/play_games_buttons.dart';
 import 'difficulty_select_screen.dart';
 import 'dino_park_screen.dart';
 
@@ -39,7 +40,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const Align(alignment: Alignment.topRight, child: AudioToggleIcons()),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [PlayGamesButtons(), AudioToggleIcons()],
+            ),
             Expanded(
               child: Center(
                 child: Column(

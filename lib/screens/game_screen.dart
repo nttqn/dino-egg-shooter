@@ -4,12 +4,14 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../game/dino_egg_game.dart';
 import '../models/difficulty.dart';
+import '../models/game_achievement.dart';
 import '../models/dino_species.dart';
 import '../models/game_mode.dart';
 import '../models/game_state.dart';
 import '../services/admob_service.dart';
 import '../services/dino_collection.dart';
 import '../services/music_service.dart';
+import '../services/player_stats.dart';
 import '../services/save_service.dart';
 import '../services/sound_service.dart';
 import '../widgets/audio_toggles.dart';
@@ -45,6 +47,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _banner?.dispose();
     MusicService.playMenu();
+    PlayerStats.flush();
     super.dispose();
   }
 
@@ -363,7 +366,15 @@ class _RoundEndOverlayState extends State<_RoundEndOverlay> {
     widget.difficulty,
     widget.mode,
     widget.score,
-  );
+  ).whenComplete(PlayerStats.flush);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mode == GameMode.timeTrial && widget.score >= kTimeTrialTargetScore) {
+      PlayerStats.unlock(GameAchievement.timeTrial3000);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

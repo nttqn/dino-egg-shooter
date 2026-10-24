@@ -9,9 +9,11 @@ import 'package:flutter/material.dart' hide PointerMoveEvent;
 
 import '../models/difficulty.dart';
 import '../models/dino_species.dart';
+import '../models/game_achievement.dart';
 import '../models/game_mode.dart';
 import '../models/game_state.dart';
 import '../services/dino_collection.dart';
+import '../services/player_stats.dart';
 import '../services/sound_service.dart';
 import 'effects/hatch_banner.dart';
 import 'effects/pop_effect.dart';
@@ -331,6 +333,7 @@ class DinoEggGame extends FlameGame
     if (!abilityReady || _projectile != null) return;
 
     energyNotifier.value = 0;
+    PlayerStats.addSkillUse();
     companionDino.celebrate();
     final ability = companion.info.ability;
     add(AnnouncementText(ability.title.toUpperCase(), fontSize: 30));
@@ -396,6 +399,7 @@ class DinoEggGame extends FlameGame
 
   void _awardPops(int count) {
     if (count <= 0) return;
+    PlayerStats.addPops(count);
     scoreNotifier.value += count * 10;
     SoundService.playPop();
   }
@@ -724,6 +728,9 @@ class DinoEggGame extends FlameGame
     final fallen = _removeFloatingCells();
 
     _awardPops(matched.length + fallen);
+    if (chargesEnergy && matched.length + fallen >= kBigComboSize) {
+      PlayerStats.unlock(GameAchievement.bigCombo);
+    }
     if (chargesEnergy) {
       _addEnergy(matched.length * kEnergyPerMatched + fallen * kEnergyPerFallen);
     }
@@ -755,6 +762,8 @@ class DinoEggGame extends FlameGame
   void _hatchAt(Vector2 position) {
     final species = DinoCollection.pickHatchling(_random);
     final isNew = DinoCollection.recordHatch(species);
+    PlayerStats.unlock(GameAchievement.firstHatch);
+    if (DinoCollection.ownedCount == DinoSpecies.values.length) PlayerStats.unlock(GameAchievement.fullPark);
 
     final delay = max(0.0, _nextHatchBannerAt - _elapsed);
     _nextHatchBannerAt = _elapsed + delay + _hatchBannerSlot;
@@ -812,6 +821,8 @@ class DinoEggGame extends FlameGame
   void _boardCleared() {
     if (mode == GameMode.normal) {
       levelNotifier.value++;
+      if (level >= 5) PlayerStats.unlock(GameAchievement.level5);
+      if (level >= 10) PlayerStats.unlock(GameAchievement.level10);
     }
     _populateBoard();
     currentColor = _randomAvailableColor();
