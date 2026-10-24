@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Play Games Services project for Dino Egg Shooter. Copied into the
+     generated android/ tree by CI; the leaderboard and achievement IDs live
+     in lib/services/play_games.dart. -->
+<resources>
+    <string name="game_services_project_id" translatable="false">1058068821754</string>
+</resources>

@@ -36,7 +36,6 @@ jobs:
       - name: Patch AndroidManifest.xml (AdMob + Play Games + app label)
         env:
           ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
-          PLAY_GAMES_APP_ID: ${{ secrets.PLAY_GAMES_APP_ID }}
         run: |
           set -e
           APP_ID="${ADMOB_APP_ID:-ca-app-pub-3940256099942544~3347511713}"
@@ -47,17 +46,11 @@ jobs:
           sed -i "s#<application#<uses-permission android:name=\"android.permission.INTERNET\"/>\n  <application#" "$MANIFEST"
           sed -i "s#</application>#    <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"${APP_ID}\"/>\n  </application>#" "$MANIFEST"
           sed -i -E 's/android:label="[^"]*"/android:label="Dino Egg Shooter"/g' "$MANIFEST"
-          # Play Games Services can't sign in without this meta-data. It's
-          # referenced as a string resource, not a bare number, so Android
-          # hands the numeric project ID over as text. Without the secret,
-          # Play Games just stays off (PlayGames catches every call).
-          if [ -n "${PLAY_GAMES_APP_ID}" ]; then
-            printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <string name="game_services_project_id" translatable="false">%s</string>\n</resources>\n' \
-              "${PLAY_GAMES_APP_ID}" > android/app/src/main/res/values/games_ids.xml
-            sed -i "s#</application>#    <meta-data android:name=\"com.google.android.gms.games.APP_ID\" android:value=\"@string/game_services_project_id\"/>\n  </application>#" "$MANIFEST"
-          else
-            echo "::warning::PLAY_GAMES_APP_ID secret not set — Play Games (leaderboards, achievements, cloud save) is off in this build."
-          fi
+          # Play Games Services project ID — not a secret, it ships in every
+          # APK. Referenced as a string resource rather than a bare number so
+          # Android hands it over as text.
+          cp tool/games_ids.xml android/app/src/main/res/values/games_ids.xml
+          sed -i "s#</application>#    <meta-data android:name=\"com.google.android.gms.games.APP_ID\" android:value=\"@string/game_services_project_id\"/>\n  </application>#" "$MANIFEST"
           cat "$MANIFEST"
 
       # google_mobile_ads requires minSdk 23+ (and a recent compileSdk).

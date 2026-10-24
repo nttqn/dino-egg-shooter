@@ -24,26 +24,26 @@ import 'save_service.dart';
 class PlayGames {
   PlayGames._();
 
-  // IDs from Play Console (Play Games Services → the game). Empty = not
+  // IDs from Play Console (Play Games Services project 1058068821754). Empty = not
   // created yet; that board or achievement is skipped.
   static const Map<GameMode, String> _scoreBoards = {
-    GameMode.normal: '',
-    GameMode.endless: '',
-    GameMode.timeTrial: '',
+    GameMode.normal: 'CgkI-u3DzuUeEAIQAg',
+    GameMode.endless: 'CgkI-u3DzuUeEAIQAw',
+    GameMode.timeTrial: 'CgkI-u3DzuUeEAIQBA',
   };
-  static const _hatchBoard = '';
+  static const _hatchBoard = 'CgkI-u3DzuUeEAIQBQ';
 
   static const Map<GameAchievement, String> _achievementIds = {
-    GameAchievement.firstHatch: '',
-    GameAchievement.fullPark: '',
-    GameAchievement.hatch25: '',
-    GameAchievement.firstSkill: '',
-    GameAchievement.skill50: '',
-    GameAchievement.pop1000: '',
-    GameAchievement.bigCombo: '',
-    GameAchievement.level5: '',
-    GameAchievement.level10: '',
-    GameAchievement.timeTrial3000: '',
+    GameAchievement.firstHatch: 'CgkI-u3DzuUeEAIQBg',
+    GameAchievement.fullPark: 'CgkI-u3DzuUeEAIQBw',
+    GameAchievement.hatch25: 'CgkI-u3DzuUeEAIQCA',
+    GameAchievement.firstSkill: 'CgkI-u3DzuUeEAIQCQ',
+    GameAchievement.skill50: 'CgkI-u3DzuUeEAIQCg',
+    GameAchievement.pop1000: 'CgkI-u3DzuUeEAIQCw',
+    GameAchievement.bigCombo: 'CgkI-u3DzuUeEAIQDA',
+    GameAchievement.level5: 'CgkI-u3DzuUeEAIQDQ',
+    GameAchievement.level10: 'CgkI-u3DzuUeEAIQDg',
+    GameAchievement.timeTrial3000: 'CgkI-u3DzuUeEAIQDw',
   };
 
   static const _saveName = 'progress';
